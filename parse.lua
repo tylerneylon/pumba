@@ -76,6 +76,45 @@ end
 
 
 ------------------------------------------------------------------------------
+-- Tree execution functions.
+------------------------------------------------------------------------------
+
+-- I decided to split this into per-tree-type functions because this is more
+-- like the ultimate structure of a pumba runtime system.
+
+-- For the current type of expressions, we can have all executions
+-- return a number and nothing else.
+
+function exec_tree(tree)
+  local fn_of_type = {sum = exec_sum, prod = exec_prod, num = exec_num}
+  return fn_of_type[tree.type](tree)
+end
+
+-- The functions below here are type-specific.
+-- They expect their input to have a given type.
+
+function exec_sum(sum_tree)
+  local s = 0
+  for _, subtree in ipairs(sum_tree.kids) do
+    s = s + exec_tree(subtree)
+  end
+  return s
+end
+
+function exec_prod(prod_tree)
+  local p = 1
+  for _, subtree in ipairs(prod_tree.kids) do
+    p = p * exec_tree(subtree)
+  end
+  return p
+end
+
+function exec_num(num_tree)
+  return num_tree.value
+end
+
+
+------------------------------------------------------------------------------
 -- Debug functions.
 ------------------------------------------------------------------------------
 
@@ -113,12 +152,15 @@ local f = assert(io.open(in_file, 'r'))
 for line in f:lines() do
   print('line:')
   print(line)
-  local result, tail = parse_sum(line)
+  local tree, tail = parse_sum(line)
   print('')
-  print('result:')
-  pr(result)
+  print('tree:')
+  pr(tree)
   print('tail:')
   pr(tail)
+  print('exec value:')
+  print(exec_tree(tree))
+  print('')
 end
 f:close()
 
