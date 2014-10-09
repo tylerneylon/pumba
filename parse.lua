@@ -32,11 +32,23 @@ string given as input to parse_X.
 -- Parse functions.
 ------------------------------------------------------------------------------
 
-function parse_expr(expr_str)
-  print('Got the expr_str ' .. expr_str)
-end
+-- As a near-future step, it might be nice to factor all of these out so they
+-- mainly rely on a single parsing mechanism.
 
 function parse_sum(sum_str)
+  local tree = {type='sum', kids={}}
+  local result, tail = parse_prod(sum_str)
+  if result == 'no match' then return result, sum_str end
+  tree.kids[1] = result
+  local first, last = tail:find('^%s*%+%s*')
+  while first do
+    tail = tail:sub(last + 1)
+    result, tail = parse_prod(tail)
+    if result == 'no match' then return result, sum_str end
+    tree.kids[#tree.kids + 1] = result
+    first, last = tail:find('^%s*%+%s*')
+  end
+  return tree, tail
 end
 
 function parse_prod(prod_str)
@@ -99,9 +111,9 @@ end
 local in_file = arg[1]
 local f = assert(io.open(in_file, 'r'))
 for line in f:lines() do
-  -- Eventually this will just be:
-  --parse_expr(line)
-  local result, tail = parse_prod(line)
+  print('line:')
+  print(line)
+  local result, tail = parse_sum(line)
   print('')
   print('result:')
   pr(result)
