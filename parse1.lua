@@ -1,8 +1,8 @@
 #!/usr/local/bin/lua
--- parse.lua
+-- parse1.lua
 --
 -- Usage:
---   ./parse.lua <input_file>
+--   ./parse1.lua <input_file>
 --
 -- This is a script to parse mathematical expressions
 -- using only small positive integers, addition, and multiplication.
@@ -163,4 +163,3 @@ for line in f:lines() do
   print('')
 end
 f:close()
-
