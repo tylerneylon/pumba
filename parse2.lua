@@ -4,18 +4,30 @@
 -- Usage:
 --   ./parse2.lua <input_file>
 --
--- <TODO>
+-- This script can parse a simple
+-- imperative language.
 --
 
 
 --[[
 
-Here's the idea behind how we'll parse expressions.
+Here is an informal description of the grammar:
 
-expr -> sum
-sum -> prod[ + prod]*
-prod -> num[ * num]*
-num -> "\d+"
+statement -> assign | for | print
+
+assign     -> std_assign | inc_assign
+std_assign -> var '=' expr
+inc_assign -> var '+=' expr
+
+expr       -> var | num
+var        -> "[A-Za-z_][A-Za-z0-9_]*"
+num        -> "[1-9][0-9]*"
+
+for       -> 'for' var '=' expr 'to' expr ':' statement
+
+print     -> 'print' expr
+
+## Parse function style:
 
 On success, each parse_X function will return tree, tail, where tree is
 an abstract syntax tree of the form {type, (kids|value)}, and tail is
@@ -23,6 +35,10 @@ the unparsed portion of the string.
 
 On failure, parse_X returns 'no match', tail, where tail is the full
 string given as input to parse_X.
+
+## Exec function style:
+
+<TODO>
 
 --]]
 
