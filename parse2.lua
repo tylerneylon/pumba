@@ -12,8 +12,8 @@
 --[[
 
 TODO
- * The current code does not correctly parse all lines. Fix that.
  * Add the exec style functions, and update comments accordingly.
+ * Redesign and implement nicer-to-read printing of trees.
 
 Here is an informal description of the grammar:
 
@@ -76,7 +76,7 @@ end
 
 function parse_lit(lit_str, name)
   name = name or '<lit>'
-  local re = '%s*(' .. escaped_lit(lit_str) .. ')'
+  local re = '^%s*(' .. escaped_lit(lit_str) .. ')'
   return function(str)
     local s, e, val = str:find(re)
     if s == nil then return 'no match', str end
@@ -86,11 +86,16 @@ end
 
 function parse_re(re_str, name)
   name = name or '<re>'
-  local re = '%s*(' .. re_str .. ')'
+  local re_list = {}
+  for re_item in re_str:gmatch('[^|]+') do
+    re_list[#re_list + 1] = '^%s*(' .. re_item .. ')'
+  end
   return function(str)
-    local s, e, val = str:find(re)
-    if s == nil then return 'no match', str end
-    return {type = name, value = val}, str:sub(e + 1)
+    for _, re in ipairs(re_list) do
+      local s, e, val = str:find(re)
+      if s then return {type = name, value = val}, str:sub(e + 1) end
+    end
+    return 'no match', str
   end
 end
 
@@ -133,7 +138,7 @@ end
 
 parse_var = parse_re('[A-Za-z_][A-Za-z0-9_]*', 'var')
 
-parse_num = parse_re('[1-9][0-9]*', 'num')
+parse_num = parse_re('0|[1-9][0-9]*', 'num')
 
 function parse_for(str)
   local seq_parsers = {parse_lit('for'), parse_var, parse_lit('='), parse_expr,
@@ -206,6 +211,29 @@ function pr(obj, indent)
     end
   end
 end
+
+function first_line(str)
+  next_newline = str:find('\n') or #str + 1
+  return str:sub(1, next_newline - 1)
+end
+
+indent = ''
+
+function wrap_metaparse_fn(metaparse_fn_name)
+  local metaparse_fn = _G[metaparse_fn_name]
+  _G[metaparse_fn_name] = function (str, rule_name, subparsers)
+    indent = indent .. '  '
+    print(indent .. rule_name .. ' attempting from ' .. first_line(str))
+    local tree, tail = metaparse_fn(str, rule_name, subparsers)
+    print(indent .. rule_name .. (tree == 'no match' and ' failed' or ' succeeded'))
+    indent = indent:sub(1, #indent - 2)
+    return tree, tail
+  end
+end
+
+-- Turn this on or off to control how verbose parsing is.
+wrap_metaparse_fn('parse_or_rule')
+wrap_metaparse_fn('parse_seq_rule')
 
 
 ------------------------------------------------------------------------------
