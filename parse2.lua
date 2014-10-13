@@ -13,7 +13,6 @@
 
 TODO
  * Add the exec style functions, and update comments accordingly.
- * Redesign and implement nicer-to-read printing of trees.
 
 Here is an informal description of the grammar:
 
@@ -34,7 +33,7 @@ print     -> 'print' expr
 ## Parse function style:
 
 On success, each parse_X function will return tree, tail, where tree is
-an abstract syntax tree of the form {type, (kids|value)}, and tail is
+an abstract syntax tree of the form {name, (kids|value)}, and tail is
 the unparsed portion of the string.
 
 On failure, parse_X returns 'no match', tail, where tail is the full
@@ -52,7 +51,7 @@ string given as input to parse_X.
 ------------------------------------------------------------------------------
 
 function parse_or_rule(str, rule_name, or_parsers)
-  local tree = {type = rule_name, kids={}}
+  local tree = {name = rule_name, kids={}}
   for _, subparse in ipairs(or_parsers) do
     local subtree, tail = subparse(str)
     if subtree ~= 'no match' then
@@ -64,7 +63,7 @@ function parse_or_rule(str, rule_name, or_parsers)
 end
 
 function parse_seq_rule(str, rule_name, seq_parsers)
-  local tree = {type = rule_name, kids = {}}
+  local tree = {name = rule_name, kids = {}}
   local subtree, tail = nil, str
   for _, subparse in ipairs(seq_parsers) do
     subtree, tail = subparse(tail)
@@ -80,7 +79,7 @@ function parse_lit(lit_str, name)
   return function(str)
     local s, e, val = str:find(re)
     if s == nil then return 'no match', str end
-    return {type = name, value = val}, str:sub(e + 1)
+    return {name = name, value = val}, str:sub(e + 1)
   end
 end
 
@@ -93,7 +92,7 @@ function parse_re(re_str, name)
   return function(str)
     for _, re in ipairs(re_list) do
       local s, e, val = str:find(re)
-      if s then return {type = name, value = val}, str:sub(e + 1) end
+      if s then return {name = name, value = val}, str:sub(e + 1) end
     end
     return 'no match', str
   end
@@ -156,19 +155,19 @@ end
 -- Tree execution functions.
 ------------------------------------------------------------------------------
 
--- I decided to split this into per-tree-type functions because this is more
+-- I decided to split this into per-tree-name functions because this is more
 -- like the ultimate structure of a pumba runtime system.
 
 -- For the current type of expressions, we can have all executions
 -- return a number and nothing else.
 
 function exec_tree(tree)
-  local fn_of_type = {sum = exec_sum, prod = exec_prod, num = exec_num}
-  return fn_of_type[tree.type](tree)
+  local fn_of_name = {sum = exec_sum, prod = exec_prod, num = exec_num}
+  return fn_of_name[tree.name](tree)
 end
 
--- The functions below here are type-specific.
--- They expect their input to have a given type.
+-- The functions below here are name-specific.
+-- They expect their input to have a given name.
 
 function exec_sum(sum_tree)
   local s = 0
@@ -195,6 +194,8 @@ end
 -- Debug functions.
 ------------------------------------------------------------------------------
 
+-- This is designed for general Lua values. Anything goes.
+-- The function pr_tree below is better for printing trees.
 function pr(obj, indent)
   indent = indent or ''
   if type(obj) ~= 'table' then
@@ -209,6 +210,28 @@ function pr(obj, indent)
     else
       print(string.format('%-6s = ', k) .. tostring(v))
     end
+  end
+end
+
+function pr_tree(tree, indent, this_indent)
+  indent = indent or ''
+  io.write(this_indent or indent)
+  if tree.name == '<lit>' then
+    print("'" .. tree.value .. "'")
+    return
+  end
+  if tree.value then
+    print(tree.name .. ' ' .. tree.value)
+    return
+  end
+  if #tree.kids == 1 then
+    io.write(tree.name .. ' - ')
+    return pr_tree(tree.kids[1], indent, '')
+  end
+  -- At this point, the tree must have multiple kids to print.
+  print(tree.name)
+  for _, kid in ipairs(tree.kids) do
+    pr_tree(kid, indent .. '  ')
   end
 end
 
@@ -232,8 +255,8 @@ function wrap_metaparse_fn(metaparse_fn_name)
 end
 
 -- Turn this on or off to control how verbose parsing is.
-wrap_metaparse_fn('parse_or_rule')
-wrap_metaparse_fn('parse_seq_rule')
+--wrap_metaparse_fn('parse_or_rule')
+--wrap_metaparse_fn('parse_seq_rule')
 
 
 ------------------------------------------------------------------------------
@@ -250,16 +273,22 @@ end
 local in_file = arg[1]
 local f = assert(io.open(in_file, 'r'))
 for line in f:lines() do
+  print('')
   print('line:')
   print(line)
+
   local tree, tail = parse_statement(line)
+
   print('')
   print('tree:')
-  pr(tree)
+  pr_tree(tree)
+
+  print('')
   print('tail:')
   pr(tail)
+
   --print('exec value:')
   --print(exec_tree(tree))
-  print('')
+  --print('')
 end
 f:close()
