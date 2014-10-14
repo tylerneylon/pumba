@@ -11,9 +11,6 @@
 
 --[[
 
-TODO
- * Add the exec style functions, and update comments accordingly.
-
 Here is an informal description of the grammar:
 
 statement -> assign | for | print
@@ -41,7 +38,30 @@ string given as input to parse_X.
 
 ## Exec function style:
 
-<TODO>
+The general usage pattern is as follows:
+
+    gl, lo = exec_<rule>(tree, gl, lo)
+
+where gl are the globals and lo are the locals.
+
+Internally, it is expected that each exec rule make a deep copy of lo
+if it wants to modify it so that the Lua stack coincides with the
+executed stack.
+
+In the future, I'm interested in exploring this modified model:
+
+    lo = exec(tree, gl, lo)
+
+The changes are:
+
+* It is understood that gl is meant to modified in place; don't return it.
+* A global exec function ensures that rule-specific exec functions work
+  with a copy of lo.
+
+The main downside to this is the inefficiency of making a copy of lo.
+Instead, we could use metatables to delegate lookups. This can work
+the way we want since __newindex is called on a derived table even when
+the key being written to exists in base table.
 
 --]]
 
@@ -51,7 +71,7 @@ string given as input to parse_X.
 ------------------------------------------------------------------------------
 
 function parse_or_rule(str, rule_name, or_parsers)
-  local tree = {name = rule_name, kids={}}
+  local tree = {name = rule_name, kind = 'or', kids={}}
   for _, subparse in ipairs(or_parsers) do
     local subtree, tail = subparse(str)
     if subtree ~= 'no match' then
@@ -63,7 +83,7 @@ function parse_or_rule(str, rule_name, or_parsers)
 end
 
 function parse_seq_rule(str, rule_name, seq_parsers)
-  local tree = {name = rule_name, kids = {}}
+  local tree = {name = rule_name, kind = 'seq', kids = {}}
   local subtree, tail = nil, str
   for _, subparse in ipairs(seq_parsers) do
     subtree, tail = subparse(tail)
@@ -152,42 +172,115 @@ end
 
 
 ------------------------------------------------------------------------------
+-- General utility functions.
+------------------------------------------------------------------------------
+
+-- This is an easy-case deep copy function. Cases it doesn't handle:
+--  * recursive structures
+--  * metatables
+function copy(obj)
+  if type(obj) ~= 'table' then return obj end
+  local res = {}
+  for k, v in pairs(obj) do res[copy(k)] = copy(v) end
+  return res
+end
+
+
+------------------------------------------------------------------------------
 -- Tree execution functions.
 ------------------------------------------------------------------------------
 
 -- I decided to split this into per-tree-name functions because this is more
 -- like the ultimate structure of a pumba runtime system.
 
--- For the current type of expressions, we can have all executions
--- return a number and nothing else.
+-- For the current type of expressions, all executions accept and return
+-- gl and lo tables, for globals and locals. The purpose of this is to make it
+-- easy to integrate an executed stack with Lua's call stack for locals, while
+-- also maintaining and passing around global state that is still not global
+-- from Lua's perspective.
 
-function exec_tree(tree)
-  local fn_of_name = {sum = exec_sum, prod = exec_prod, num = exec_num}
-  return fn_of_name[tree.name](tree)
-end
+-- Within each exec function, treating lo as read-only will keep it in line
+-- with Lua's stack. Any modifications can be returned in a copy.
 
--- The functions below here are name-specific.
--- They expect their input to have a given name.
+-- The special value lo.val will hold the value of the last-evaluated
+-- expression.
 
-function exec_sum(sum_tree)
-  local s = 0
-  for _, subtree in ipairs(sum_tree.kids) do
-    s = s + exec_tree(subtree)
+-- Set up fn_of_tree so that fn_of_tree[rule_name] = exec_fn, where
+-- exec_fn is the function that knows how to execute the given rule name.
+-- We'll set up this table after we define the functions it will refer to.
+local fn_of_tree
+
+function exec_tree(tree, gl, lo)
+  if tree.kind == 'or' then
+    return exec_tree(tree.kids[1], gl, lo)
   end
-  return s
+  return fn_of_tree[tree.name](tree, gl, lo)
 end
 
-function exec_prod(prod_tree)
-  local p = 1
-  for _, subtree in ipairs(prod_tree.kids) do
-    p = p * exec_tree(subtree)
+function exec_std_assign(tree, gl, lo)
+  local var_name = tree.kids[1].value
+  local expr_lo
+  gl, expr_lo = exec_tree(tree.kids[3], gl, lo)
+  local rvalue = expr_lo.val
+  -- All assignments, except for temporary for-loop variables, are global.
+  gl[var_name] = rvalue
+  return gl, lo
+end
+
+function exec_inc_assign(tree, gl, lo)
+  local var_name = tree.kids[1].value
+  local expr_lo
+  gl, expr_lo = exec_tree(tree.kids[3], gl, lo)
+  local rvalue = expr_lo.val
+  -- It is undecided what should happen if the variable does not exist.
+  -- sc = scope
+  local sc = lo[var_name] and lo or gl
+  sc[var_name] = sc[var_name] + rvalue
+  return gl, lo
+end
+
+-- This retrieves the value of a variable.
+function exec_var(tree, gl, lo)
+  local lo_copy = copy(lo)
+  -- If there's a local variable of the same name,
+  -- that takes precedence over the global one.
+  lo_copy.val = lo[tree.value] or gl[tree.value]
+  return gl, lo_copy
+end
+
+function exec_num(tree, gl, lo)
+  local lo_copy = copy(lo)
+  lo_copy.val = tonumber(tree.value)
+  return gl, lo_copy
+end
+
+function exec_for(tree, gl, lo)
+  local lo_copy = copy(lo)
+  local var_name = tree.kids[2].value
+  local min_lo, max_lo
+  gl, min_lo = exec_tree(tree.kids[4], gl, lo)
+  gl, max_lo = exec_tree(tree.kids[6], gl, lo)
+  local min, max = min_lo.val, max_lo.val
+  for v = min, max do
+    lo_copy[var_name] = v
+    exec_tree(tree.kids[8], gl, lo_copy)
   end
-  return p
+  return gl, lo
 end
 
-function exec_num(num_tree)
-  return num_tree.value
+function exec_print(tree, gl, lo)
+  local expr_lo
+  gl, expr_lo = exec_tree(tree.kids[2], gl, lo)
+  print(expr_lo.val)
+  return gl, lo
 end
+
+fn_of_tree = {std_assign = exec_std_assign,
+              inc_assign = exec_inc_assign,
+              var        = exec_var,
+              num        = exec_num,
+              ['for']    = exec_for,
+              ['print']  = exec_print}
 
 
 ------------------------------------------------------------------------------
@@ -258,6 +351,32 @@ end
 --wrap_metaparse_fn('parse_or_rule')
 --wrap_metaparse_fn('parse_seq_rule')
 
+function pr_line_values(line, tree, tail, gl, lo)
+  print('')
+  print('line:')
+  print(line)
+
+  print('')
+  print('tree:')
+  pr_tree(tree)
+
+  print('')
+  print('tail:')
+  pr(tail)
+
+  print('')
+  print('gl:')
+  pr(gl)
+
+  print('')
+  print('lo:')
+  pr(lo)
+
+  print('')
+  print('exec value:')
+  print(lo.val)
+  print('')
+end
 
 ------------------------------------------------------------------------------
 -- Main.
@@ -272,23 +391,15 @@ end
 
 local in_file = arg[1]
 local f = assert(io.open(in_file, 'r'))
+local gl, lo = {}, {}
 for line in f:lines() do
-  print('')
-  print('line:')
-  print(line)
 
   local tree, tail = parse_statement(line)
+  gl, lo = exec_tree(tree, gl, lo)
 
-  print('')
-  print('tree:')
-  pr_tree(tree)
+  -- Uncomment the following line to print out some
+  -- interesting per-line values.
+  --pr_line_values(line, tree, tail, gl, lo)
 
-  print('')
-  print('tail:')
-  pr(tail)
-
-  --print('exec value:')
-  --print(exec_tree(tree))
-  --print('')
 end
 f:close()
