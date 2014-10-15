@@ -41,10 +41,15 @@ on the following example:
 
 ## What is in progress
 
-The planned next step is to build `parse3.lua` as
+### The `parse3.lua` script
+
+Run this as `./parse3.lua 01.input`.
+
+This script is being built as
 an iteration of `parse2.lua` which puts more work into
 metafunctions and data-fies much of the grammar and
 execution work.
 
 The general direction here is to move toward grammar
 and execution specification as input.
+
