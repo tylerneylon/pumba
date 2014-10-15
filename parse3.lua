@@ -69,10 +69,39 @@ the key being written to exists in base table.
 
 
 ------------------------------------------------------------------------------
+-- Metaparse variables.
+------------------------------------------------------------------------------
+
+-- rules[rule_name] = rule_data.
+-- I have not yet decided on the format of rule_data.
+local rules = {}
+
+
+------------------------------------------------------------------------------
 -- Metaparse functions.
 ------------------------------------------------------------------------------
 
-function parse_or_rule(str, rule_name, or_parsers)
+-- By default, we parse the 'statement' rule.
+function parse(str)
+  return parse_rule(str, rules['statement'])
+end
+
+function parse_rule(str, rule)
+  -- TODO HERE (use the two functions below to make this one)
+end
+
+function parse_or_rule(str, or_rule)
+  -- TODO
+end
+
+function parse_seq_rule(str, seq_rule)
+  -- TODO
+end
+
+
+-- previous metaparse functions
+
+function old_parse_or_rule(str, rule_name, or_parsers)
   local tree = {name = rule_name, kind = 'or', kids={}}
   for _, subparse in ipairs(or_parsers) do
     local subtree, tail = subparse(str)
@@ -84,7 +113,7 @@ function parse_or_rule(str, rule_name, or_parsers)
   return 'no match', str
 end
 
-function parse_seq_rule(str, rule_name, seq_parsers)
+function old_parse_seq_rule(str, rule_name, seq_parsers)
   local tree = {name = rule_name, kind = 'seq', kids = {}}
   local subtree, tail = nil, str
   for _, subparse in ipairs(seq_parsers) do
@@ -123,6 +152,24 @@ end
 function escaped_lit(lit_str)
   return lit_str:gsub('[^A-Za-z]', '%%%0')
 end
+
+
+------------------------------------------------------------------------------
+-- Grammar as data.
+------------------------------------------------------------------------------
+
+local grammar = {
+  ['statement']  = {kind = 'or',  items = {'assign', 'for', 'print'}},
+  ['assign']     = {kind = 'or',  items = {'std_assign', 'inc_assign'}},
+  ['std_assign'] = {kind = 'seq', items = {'var', "'='", 'expr'}},
+  ['inc_assign'] = {kind = 'seq', items = {'var', "'+='", 'expr'}},
+  ['expr']       = {kind = 'or',  items = {'var', 'num'}},
+  ['var']        = {kind = 'seq', items = {'"[A-Za-z_][A-Za-z0-9_]*"'}},
+  ['num']        = {kind = 'seq', items = {'"0|[1-9][0-9]*"'}},
+  ['for']        = {kind = 'seq', items = {"'for'", 'var', "'='", 'expr',
+                                           "'to'", 'expr', "':'", 'statement'}},
+  ['print']      = {kind = 'seq', items = {"'print'", 'expr'}},
+}
 
 
 ------------------------------------------------------------------------------
