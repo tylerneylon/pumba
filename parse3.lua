@@ -83,21 +83,62 @@ local rules = {}
 
 -- By default, we parse the 'statement' rule.
 function parse(str)
-  return parse_rule(str, rules['statement'])
+  return parse_rule(str, 'statement')
 end
 
-function parse_rule(str, rule)
-  -- TODO HERE (use the two functions below to make this one)
+function parse_rule(str, rule_name)
+  -- TODO HERE Handle literals and regular expressions.
+  local rule = rules[rule_name]
+  if rule.kind == 'or' then
+    return parse_or_rule(str, rule)
+  elseif rule.kind == 'seq' then
+    return parse_seq_rule(str, rule)
+  else
+    error('Unknown rule kind: ' .. tostring(rule.kind))
+  end
 end
 
-function parse_or_rule(str, or_rule)
-  -- TODO
+function parse_or_rule(str, rule)
+  local tree = {name = rule.name, kind = 'or', kids={}}
+  for _, subrule in ipairs(rule.items) do
+    local subtree, tail = parse_rule(str, subrule)
+    if subtree ~= 'no match' then
+      tree.kids[#tree.kids + 1] = subtree
+      return tree, tail
+    end
+  end
+  return 'no match', str
 end
 
-function parse_seq_rule(str, seq_rule)
-  -- TODO
+function parse_seq_rule(str, rule)
+  local tree = {name = rule.name, kind = 'seq', kids = {}}
+  local subtree, tail = nil, str
+  for _, subrule in ipairs(rule.items) do
+    subtree, tail = parse_rule(tail, subrule)
+    if subtree == 'no match' then return 'no match', str end
+    tree.kids[#tree.kids + 1] = subtree
+  end
+  return tree, tail
 end
 
+function parse_literal(str, lit_str)
+  local re = '^%s*(' .. escaped_lit(lit_str) .. ')'
+  local s, e, val = str:find(re)
+  if s == nil then return 'no match', str end
+  return {name = '<lit>', value = val}, str:sub(e + 1)
+end
+
+function parse_regex(str, regex)
+  local re_list = {}
+  for re_item in re_str:gmatch('[^|]+') do
+    re_list[#re_list + 1] = '^%s*(' .. re_item .. ')'
+  end
+  for _, re in ipairs(re_list) do
+    local s, e, val = str:find(re)
+    if s then return {name = '<re>', value = val}, str:sub(e + 1) end
+  end
+  return 'no match', str
+end
 
 -- previous metaparse functions
 
@@ -170,6 +211,10 @@ local grammar = {
                                            "'to'", 'expr', "':'", 'statement'}},
   ['print']      = {kind = 'seq', items = {"'print'", 'expr'}},
 }
+
+-- Add a 'name' key to each rule so that it can passed around as a
+-- self-contained object.
+for name, rule in pairs(grammar) do rule.name = name end
 
 
 ------------------------------------------------------------------------------
