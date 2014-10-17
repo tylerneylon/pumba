@@ -39,13 +39,11 @@ on the following example:
     for i = 1 to 100: s += i
     print s
 
-## What is in progress
-
 ### The `parse3.lua` script
 
 Run this as `./parse3.lua 01.input`.
 
-This script is being built as
+This script is
 an iteration of `parse2.lua` which puts more work into
 metafunctions and data-fies much of the grammar and
 execution work.
@@ -53,3 +51,8 @@ execution work.
 The general direction here is to move toward grammar
 and execution specification as input.
 
+## What is in progress
+
+Up next I plan to copy `parse3` over to `parse4`
+and make the execution portion more data-like than
+code-like.

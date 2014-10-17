@@ -5,9 +5,9 @@
 --   ./parse3.lua <input_file>
 --
 -- This script can parse the same simple language as parse2. The difference is
--- that this script is written so that the grammar and execution rules are
--- much more like data than like code. This is a stepping stone toward an open
--- compiler which parses grammar along the way.
+-- that this script is written so that the grammar is more like data than code.
+-- This is a stepping stone toward an open compiler which parses grammar along
+-- the way.
 --
 
 
@@ -73,7 +73,8 @@ the key being written to exists in base table.
 ------------------------------------------------------------------------------
 
 -- rules[rule_name] = rule_data.
--- I have not yet decided on the format of rule_data.
+-- A rule has at least the keys {kind, items}, where kind is either 'or' or
+-- 'seq', and the items are either rule names, a 'literal', or a "regex".
 local rules = {}
 
 
@@ -87,7 +88,11 @@ function parse(str)
 end
 
 function parse_rule(str, rule_name)
-  -- TODO HERE Handle literals and regular expressions.
+  if rule_name:sub(1, 1) == "'" then
+    return parse_literal(str, rule_name:sub(2, #rule_name - 1))
+  elseif rule_name:sub(1, 1) == '"' then
+    return parse_regex(str, rule_name:sub(2, #rule_name - 1))
+  end
   local rule = rules[rule_name]
   if rule.kind == 'or' then
     return parse_or_rule(str, rule)
@@ -118,6 +123,7 @@ function parse_seq_rule(str, rule)
     if subtree == 'no match' then return 'no match', str end
     tree.kids[#tree.kids + 1] = subtree
   end
+  if #tree.kids == 1 then tree.value = tree.kids[1].value end
   return tree, tail
 end
 
@@ -128,9 +134,9 @@ function parse_literal(str, lit_str)
   return {name = '<lit>', value = val}, str:sub(e + 1)
 end
 
-function parse_regex(str, regex)
+function parse_regex(str, full_re)
   local re_list = {}
-  for re_item in re_str:gmatch('[^|]+') do
+  for re_item in full_re:gmatch('[^|]+') do
     re_list[#re_list + 1] = '^%s*(' .. re_item .. ')'
   end
   for _, re in ipairs(re_list) do
@@ -138,56 +144,6 @@ function parse_regex(str, regex)
     if s then return {name = '<re>', value = val}, str:sub(e + 1) end
   end
   return 'no match', str
-end
-
--- previous metaparse functions
-
-function old_parse_or_rule(str, rule_name, or_parsers)
-  local tree = {name = rule_name, kind = 'or', kids={}}
-  for _, subparse in ipairs(or_parsers) do
-    local subtree, tail = subparse(str)
-    if subtree ~= 'no match' then
-      tree.kids[#tree.kids + 1] = subtree
-      return tree, tail
-    end
-  end
-  return 'no match', str
-end
-
-function old_parse_seq_rule(str, rule_name, seq_parsers)
-  local tree = {name = rule_name, kind = 'seq', kids = {}}
-  local subtree, tail = nil, str
-  for _, subparse in ipairs(seq_parsers) do
-    subtree, tail = subparse(tail)
-    if subtree == 'no match' then return 'no match', str end
-    tree.kids[#tree.kids + 1] = subtree
-  end
-  return tree, tail
-end
-
-function parse_lit(lit_str, name)
-  name = name or '<lit>'
-  local re = '^%s*(' .. escaped_lit(lit_str) .. ')'
-  return function(str)
-    local s, e, val = str:find(re)
-    if s == nil then return 'no match', str end
-    return {name = name, value = val}, str:sub(e + 1)
-  end
-end
-
-function parse_re(re_str, name)
-  name = name or '<re>'
-  local re_list = {}
-  for re_item in re_str:gmatch('[^|]+') do
-    re_list[#re_list + 1] = '^%s*(' .. re_item .. ')'
-  end
-  return function(str)
-    for _, re in ipairs(re_list) do
-      local s, e, val = str:find(re)
-      if s then return {name = name, value = val}, str:sub(e + 1) end
-    end
-    return 'no match', str
-  end
 end
 
 function escaped_lit(lit_str)
@@ -199,7 +155,7 @@ end
 -- Grammar as data.
 ------------------------------------------------------------------------------
 
-local grammar = {
+rules = {
   ['statement']  = {kind = 'or',  items = {'assign', 'for', 'print'}},
   ['assign']     = {kind = 'or',  items = {'std_assign', 'inc_assign'}},
   ['std_assign'] = {kind = 'seq', items = {'var', "'='", 'expr'}},
@@ -214,55 +170,7 @@ local grammar = {
 
 -- Add a 'name' key to each rule so that it can passed around as a
 -- self-contained object.
-for name, rule in pairs(grammar) do rule.name = name end
-
-
-------------------------------------------------------------------------------
--- Parse functions.
-------------------------------------------------------------------------------
-
--- As a near-future step, it might be nice to factor all of these out so they
--- mainly rely on a single parsing mechanism.
-
-function parse_statement(str)
-  local or_parsers = {parse_assign, parse_for, parse_print}
-  return parse_or_rule(str, 'statement', or_parsers)
-end
-
-function parse_assign(str)
-  local or_parsers = {parse_std_assign, parse_inc_assign}
-  return parse_or_rule(str, 'assign', or_parsers)
-end
-
-function parse_std_assign(str)
-  local seq_parsers = {parse_var, parse_lit('='), parse_expr}
-  return parse_seq_rule(str, 'std_assign', seq_parsers)
-end
-
-function parse_inc_assign(str)
-  local seq_parsers = {parse_var, parse_lit('+='), parse_expr}
-  return parse_seq_rule(str, 'inc_assign', seq_parsers)
-end
-
-function parse_expr(str)
-  local or_parsers = {parse_var, parse_num}
-  return parse_or_rule(str, 'expr', or_parsers)
-end
-
-parse_var = parse_re('[A-Za-z_][A-Za-z0-9_]*', 'var')
-
-parse_num = parse_re('0|[1-9][0-9]*', 'num')
-
-function parse_for(str)
-  local seq_parsers = {parse_lit('for'), parse_var, parse_lit('='), parse_expr,
-                       parse_lit('to'), parse_expr, parse_lit(':'), parse_statement}
-  return parse_seq_rule(str, 'for', seq_parsers)
-end
-
-function parse_print(str)
-  local seq_parsers = {parse_lit('print'), parse_expr}
-  return parse_seq_rule(str, 'print', seq_parsers)
-end
+for name, rule in pairs(rules) do rule.name = name end
 
 
 ------------------------------------------------------------------------------
@@ -444,6 +352,7 @@ end
 -- Turn this on or off to control how verbose parsing is.
 --wrap_metaparse_fn('parse_or_rule')
 --wrap_metaparse_fn('parse_seq_rule')
+--wrap_metaparse_fn('parse_rule')
 
 function pr_line_values(line, tree, tail, gl, lo)
   print('')
@@ -458,6 +367,9 @@ function pr_line_values(line, tree, tail, gl, lo)
   print('tail:')
   pr(tail)
 
+  -- Turn these lines on or off to toggle printing variable values after each
+  -- statement is executed.
+  ---[[
   print('')
   print('gl:')
   pr(gl)
@@ -469,6 +381,8 @@ function pr_line_values(line, tree, tail, gl, lo)
   print('')
   print('exec value:')
   print(lo.val)
+  --]]
+
   print('')
 end
 
@@ -488,7 +402,7 @@ local f = assert(io.open(in_file, 'r'))
 local gl, lo = {}, {}
 for line in f:lines() do
 
-  local tree, tail = parse_statement(line)
+  local tree, tail = parse(line)
   gl, lo = exec_tree(tree, gl, lo)
 
   -- Uncomment the following line to print out some
