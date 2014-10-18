@@ -53,6 +53,15 @@ and execution specification as input.
 
 ## What is in progress
 
-Up next I plan to copy `parse3` over to `parse4`
-and make the execution portion more data-like than
-code-like.
+### The `parse4.lua` script
+
+The plan is to run this as `./parse4.lua 01.input`.
+
+This script is being built as the next
+iteration of `parse3.lua` which moves the rule-specific
+tree execution work into more data-like strings. This
+is tricky, because it really is arbitrary code doing the
+executing, but I want to set it up in a nice framework
+that encourages and empowers code patterns that will
+make life easier for both the language designer and
+the language user.
