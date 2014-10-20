@@ -266,16 +266,16 @@ TODO A future iteration can try to make the kid-reference syntax more intuitive.
 --]]
 
 rules['std_assign'].run = [[
-  P.frame[value(tree.kids[1])] = P:run(tree.kids[3])
+  R.frame[value(tree.kids[1])] = R:run(tree.kids[3])
 ]]
 
 rules['inc_assign'].run = [[
   local var = value(tree.kids[1])
-  P.frame[var] = P.frame[var] + P:run(tree.kids[3])
+  R.frame[var] = R.frame[var] + R:run(tree.kids[3])
 ]]
 
 rules['var'].run = [[
-  return P.frame[tree.value]
+  return R.frame[tree.value]
 ]]
 
 rules['num'].run = [[
@@ -283,18 +283,73 @@ rules['num'].run = [[
 ]]
 
 rules['for'].run = [[
-  local min, max = P:run(tree.kids[4]), P:run(tree.kids[6])
-  P:push_scope()
-  P:new_local(value(tree.kids[2]), min)
+  local min, max = R:run(tree.kids[4]), R:run(tree.kids[6])
+  R:push_scope()
+  local var_name = value(tree.kids[2])
+  R:new_local(var_name, min)
   for i = min, max do
-    P:run(tree.kids[8])
+    R.frame[var_name] = i
+    R:run(tree.kids[8])
   end
-  P:pop_scope()
+  R:pop_scope()
 ]]
 
 rules['print'].run = [[
-  print(P:run(tree.kids[2]))
+  print(R:run(tree.kids[2]))
 ]]
+
+------------------------------------------------------------------------------
+-- Tree running functions.
+------------------------------------------------------------------------------
+
+-- This sets the given key-value pair at the closest level where the key
+-- exists; if it is new key at all levels, it's created at the current level.
+function frame_set(frame, key, val)
+  if not frame.key or rawget(frame, key) then
+    rawset(frame, key, val)
+  else
+    frame_set(getmetatable(frame).up, key, val)
+  end
+end
+
+local Run = {}
+
+function Run:new()
+  local run = {}
+  run.global = {}
+  run.frame = run.global
+  self.__index = self
+  return setmetatable(run, self)
+end
+
+function Run:push_scope()
+  local meta = {__index = self.frame, up = self.frame, __newindex = frame_set}
+  self.frame = setmetatable({}, meta)
+end
+
+function Run:pop_scope()
+  self.frame = getmetatable(self.frame).up
+end
+
+function Run:new_local(name, val)
+  rawset(self.frame, name, val)
+end
+
+function Run:run(tree)
+  -- TODO HERE Implement the value function and then this run function.
+  -- This run function should basically wrap rules[tree.name].run in a
+  -- Lua function definition, loadstring and then execute it with
+  -- self->R and tree->tree as parameters.
+  --
+  -- Debug by often printing out the frame, with transparency into what's
+  -- at each level.
+end
+
+function run(tree)
+  local R = Run:new()
+  return R:run(tree)
+end
+
 
 ------------------------------------------------------------------------------
 -- General utility functions.
