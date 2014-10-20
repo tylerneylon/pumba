@@ -231,14 +231,69 @@ the user can make a table of upvalues (that is, of variables that would
 normally disappear but are held by held by the function) from the frame
 table. Lua's garbage collection plays nicely with this mechanic.
 
-TODO HERE Next up, implement the exec stuff in the framework above.
+---
+
+Ok, I am revising the above design a bit. We'll have in scope the following:
+
+* `global` is a flat table as above.
+
+* `frame` is a stacked table where rvalues look up through the stack and
+  lvalues are assigned to either the nearest existing entry with the given
+  key, or are placed in new keys at the current stack level if the key is
+  new at every level. Intuitively, this matches Lua's behavior for an
+  assigment like "x = 3".
+
+The biggest change is that there is no `local` table. I realized that the
+only job `local` performed differently than `frame` was to allow new local
+variables to shadow existing higher-level variables of the same name. In
+order to keep that functionality, we could use some other setup, such as
+a new_local function that you call like so `new_local(var_name, value)`, where
+`var_name` is a string; implementation-wise, this would be like calling
+`rawset(frame, var_name, value)`.
+
+It could be `P:new_local` so that it can have access to the frame and any
+other related state for the current execution without internally using locals.
+So `global` and `frame` would be `P.global` and `P.frame`.
 
 --]]
 
-rules.print.exec = [[
-  local expr_lo = exec(tree.kids[2], gl, lo)
-  print(expr_lo.val)
-  return lo
+--[[
+
+TODO A future iteration can try to make the kid-reference syntax more intuitive.
+     For example, maybe enable names like tree.kids.expr and tree.kids.var as
+     part of a parsed `std_assign` string.
+
+--]]
+
+rules['std_assign'].run = [[
+  P.frame[value(tree.kids[1])] = P:run(tree.kids[3])
+]]
+
+rules['inc_assign'].run = [[
+  local var = value(tree.kids[1])
+  P.frame[var] = P.frame[var] + P:run(tree.kids[3])
+]]
+
+rules['var'].run = [[
+  return P.frame[tree.value]
+]]
+
+rules['num'].run = [[
+  return tonumber(tree.value)
+]]
+
+rules['for'].run = [[
+  local min, max = P:run(tree.kids[4]), P:run(tree.kids[6])
+  P:push_scope()
+  P:new_local(value(tree.kids[2]), min)
+  for i = min, max do
+    P:run(tree.kids[8])
+  end
+  P:pop_scope()
+]]
+
+rules['print'].run = [[
+  print(P:run(tree.kids[2]))
 ]]
 
 ------------------------------------------------------------------------------
