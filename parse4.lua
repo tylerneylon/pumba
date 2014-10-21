@@ -336,18 +336,38 @@ function Run:new_local(name, val)
 end
 
 function Run:run(tree)
-  -- TODO HERE Implement the value function and then this run function.
-  -- This run function should basically wrap rules[tree.name].run in a
-  -- Lua function definition, loadstring and then execute it with
-  -- self->R and tree->tree as parameters.
-  --
-  -- Debug by often printing out the frame, with transparency into what's
-  -- at each level.
+  print('Run:run:')
+  print('  ' .. tree.name)
+  local fn_start = 'local R, tree = ...\nprint("<fn_start>")\n'  -- print is TEMP
+  fn_start = fn_start .. 'print("R, tree = ", R, tree)\n'
+  fn_start = fn_start .. 'print("tree.kids = ", tree.kids)\n'
+  -- TEMP
+  local fn_end = 'print("<fn_end>")\n'
+  local fn = loadstring(fn_start .. run_code(tree) .. fn_end)
+  print('code:\n' .. fn_start .. run_code(tree) .. fn_end)
+  return fn(self, tree)
 end
 
 function run(tree)
+  print('run: (' .. tree.name .. ')')
   local R = Run:new()
   return R:run(tree)
+end
+
+-- In the future, I'm guessing this function will have to be both better-
+-- defined and more sophisticated. Intuitively, I want it to pull out the
+-- string that became this tree, but without a whitespace prefix.
+function value(tree)
+  print('value:')
+  print('  ' .. tree.name)
+  if tree.value then return tree.value end
+  return value(tree.kids[1])
+end
+
+function run_code(tree)
+  if rules[tree.name].run then return rules[tree.name].run end
+  if tree.kind =='or' then return run_code(tree.kids[1]) end
+  error('Encountered non-or rule with no run code: ' .. tree.name)
 end
 
 
@@ -590,11 +610,12 @@ end
 
 local in_file = arg[1]
 local f = assert(io.open(in_file, 'r'))
-local gl, lo = {}, {}
+local R = Run:new()
+--local gl, lo = {}, {}
 for line in f:lines() do
 
   local tree, tail = parse(line)
-  gl, lo = exec_tree(tree, gl, lo)
+  R:run(tree)
 
   -- Uncomment the following line to print out some
   -- interesting per-line values.
