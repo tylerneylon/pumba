@@ -266,7 +266,17 @@ TODO A future iteration can try to make the kid-reference syntax more intuitive.
 --]]
 
 rules['std_assign'].run = [[
-  R.frame[value(tree.kids[1])] = R:run(tree.kids[3])
+  -- TEMP
+  print('std_assign; tree.name=' .. tree.name)
+  print('From std_assign run, about to call R:run on tree.kids[3]')
+  print('tree:')
+  pr_tree(tree)
+  print('tree.kids[3]:')
+  pr_tree(tree.kids[3])
+  local rvale = R:run(tree.kids[3])
+  print('Just returned from calling R:run on tree.kids[3]')
+  --R.frame[value(tree.kids[1])] = R:run(tree.kids[3])
+  R.frame[value(tree.kids[1])] = rvalue
 ]]
 
 rules['inc_assign'].run = [[
@@ -340,18 +350,16 @@ function Run:run(tree)
   print('  ' .. tree.name)
   local fn_start = 'local R, tree = ...\nprint("<fn_start>")\n'  -- print is TEMP
   fn_start = fn_start .. 'print("R, tree = ", R, tree)\n'
+  fn_start = fn_start .. 'print("tree.name = ", tree.name)\n'
   fn_start = fn_start .. 'print("tree.kids = ", tree.kids)\n'
   -- TEMP
-  local fn_end = 'print("<fn_end>")\n'
-  local fn = loadstring(fn_start .. run_code(tree) .. fn_end)
-  print('code:\n' .. fn_start .. run_code(tree) .. fn_end)
-  return fn(self, tree)
-end
-
-function run(tree)
-  print('run: (' .. tree.name .. ')')
-  local R = Run:new()
-  return R:run(tree)
+  local run_tree, code = run_code(tree)
+  print('run_tree, code:')
+  print(run_tree, code)
+  local fn = loadstring(fn_start .. code, '<' .. run_tree.name .. '>')
+  print('code:\n' .. fn_start .. code)
+  print('fn=' .. tostring(fn))
+  return fn(self, run_tree)
 end
 
 -- In the future, I'm guessing this function will have to be both better-
@@ -364,9 +372,20 @@ function value(tree)
   return value(tree.kids[1])
 end
 
+-- This function is meant to be called as in:
+-- run_tree, code = run_code(tree)
+-- The returned code may be wrapped and executed on the returned run_tree.
+-- TODO Is there a better name for this?
 function run_code(tree)
-  if rules[tree.name].run then return rules[tree.name].run end
-  if tree.kind =='or' then return run_code(tree.kids[1]) end
+  print('*********** run_code on tree name ' .. tree.name)
+  if rules[tree.name].run then
+    print('**** running <' .. tree.name .. '> code directly')
+    return tree, rules[tree.name].run
+  end
+  if tree.kind =='or' then
+    print('**** running <' .. tree.name .. '> through first kid')
+    return run_code(tree.kids[1])
+  end
   error('Encountered non-or rule with no run code: ' .. tree.name)
 end
 
