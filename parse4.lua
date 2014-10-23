@@ -273,15 +273,24 @@ rules['std_assign'].run = [[
   pr_tree(tree)
   print('tree.kids[3]:')
   pr_tree(tree.kids[3])
-  local rvale = R:run(tree.kids[3])
+  local rvalue = R:run(tree.kids[3])
   print('Just returned from calling R:run on tree.kids[3]')
   --R.frame[value(tree.kids[1])] = R:run(tree.kids[3])
-  R.frame[value(tree.kids[1])] = rvalue
+  local v = value(tree.kids[1])
+  print('About to assign ' .. tostring(rvalue) .. ' to var ' .. v)
+  --R.frame[value(tree.kids[1])] = rvalue
+  R.frame[v] = rvalue
 ]]
 
 rules['inc_assign'].run = [[
   local var = value(tree.kids[1])
-  R.frame[var] = R.frame[var] + R:run(tree.kids[3])
+  print('var=' .. var)
+  local left = R.frame[var]
+  print('R.frame[var]=' .. tostring(left))
+  local right = R:run(tree.kids[3])
+  print('R:run(tree.kids[3])=' .. tostring(right))
+  R.frame[var] = left + right
+  --R.frame[var] = R.frame[var] + R:run(tree.kids[3])
 ]]
 
 rules['var'].run = [[
@@ -301,7 +310,10 @@ rules['for'].run = [[
     R.frame[var_name] = i
     R:run(tree.kids[8])
   end
+  print('R.frame.s=' .. R.frame.s)
   R:pop_scope()
+  print('R:pop_scope()')
+  print('R.frame.s=' .. R.frame.s)
 ]]
 
 rules['print'].run = [[
@@ -315,7 +327,7 @@ rules['print'].run = [[
 -- This sets the given key-value pair at the closest level where the key
 -- exists; if it is new key at all levels, it's created at the current level.
 function frame_set(frame, key, val)
-  if not frame.key or rawget(frame, key) then
+  if frame[key] == nil or rawget(frame, key) ~= nil then
     rawset(frame, key, val)
   else
     frame_set(getmetatable(frame).up, key, val)
@@ -630,8 +642,16 @@ end
 local in_file = arg[1]
 local f = assert(io.open(in_file, 'r'))
 local R = Run:new()
+
 --local gl, lo = {}, {}
+local statement_num = 1
 for line in f:lines() do
+
+  print('\nvvvvvvvvv')
+  print('Before running statement ' .. statement_num)
+  print('R.frame:')
+  for k, v in pairs(R.frame) do print('  ', k, v) end
+  print('^^^^^^^^^\n')
 
   local tree, tail = parse(line)
   R:run(tree)
@@ -639,6 +659,8 @@ for line in f:lines() do
   -- Uncomment the following line to print out some
   -- interesting per-line values.
   --pr_line_values(line, tree, tail, gl, lo)
+
+  statement_num = statement_num + 1
 
 end
 f:close()
