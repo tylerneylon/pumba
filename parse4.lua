@@ -1,75 +1,151 @@
 #!/usr/local/bin/lua
--- parse4.lua
---
--- Usage:
---   ./parse4.lua <input_file>
---
--- This script can parse the same simple language as parse2. The difference is
--- that this script is written so that the grammar is more like data than code.
--- This is a stepping stone toward an open compiler which parses grammar along
--- the way.
---
-
-
 --[[
+
+# parse4.lua
+
+*This file is designed to be read after being processed as markdown.*
+
+Usage:
+
+    ./parse4.lua <input_file>
+
+This script can parse the same simple language as `parse2.lua`. The difference is
+that this script is written so that both the grammar specification and the
+corresponding code are provided more like data than code.
+
+
 
 Here is an informal description of the grammar:
 
-statement -> assign | for | print
+    statement -> assign | for | print
 
-assign     -> std_assign | inc_assign
-std_assign -> var '=' expr
-inc_assign -> var '+=' expr
+    assign     -> std_assign | inc_assign
+    std_assign -> var  '=' expr
+    inc_assign -> var '+=' expr
 
-expr       -> var | num
-var        -> "[A-Za-z_][A-Za-z0-9_]*"
-num        -> "[1-9][0-9]*"
+    expr       -> var | num
+    var        -> "[A-Za-z_][A-Za-z0-9_]*"
+    num        -> "[1-9][0-9]*"
 
-for       -> 'for' var '=' expr 'to' expr ':' statement
+    for       -> 'for' var '=' expr 'to' expr ':' statement
 
-print     -> 'print' expr
+    print     -> 'print' expr
 
-## Parse function style:
+## How the grammar is formally specified
 
-On success, each parse_X function will return tree, tail, where tree is
-an abstract syntax tree of the form {name, (kids|value)}, and tail is
-the unparsed portion of the string.
+The grammar is kept in a global table called `rules`.
+Each `rules` key is a rule name, and each value is a table
+giving the details of the rule.
+Below are the keys used by each rule:
 
-On failure, parse_X returns 'no match', tail, where tail is the full
-string given as input to parse_X.
+| key     | meaning                                       |
+|---------|-----------------------------------------------|
+| `name`  | name of the rule - same as the `rules` key    |
+| `kind`  | either `or` or `seq`                          |
+| `items` | an array of metarules to parse; details below |
+| `run`   | code to run the parsed tree; details below    |
 
-## Exec function style:
+## Metarules
 
-The general usage pattern is as follows:
+There are three types of metarules:
 
-    gl, lo = exec_<rule>(tree, gl, lo)
+1. Any standard token is treated as the name of a rule given
+   in the `rules` table.
+2. Anything inside single quotes `'like_this'` is considered a
+   direct string literal to be matched character-for-character.
+3. Anything inside double quotes `"like this"` is considered a
+   pumba pattern, which is a regular expression with only
+   limited support for the `|` special character.
 
-where gl are the globals and lo are the locals.
+## Parse function style
 
-Internally, it is expected that each exec rule make a deep copy of lo
-if it wants to modify it so that the Lua stack coincides with the
-executed stack.
+On success, the `parse(str)` function returns `tree, tail`, where `tree` is an
+abstract syntax tree of the form `{name, kind, (kids|value)}`, and `tail` is the
+unparsed portion of the string.
 
-In the future, I'm interested in exploring this modified model:
+On failure, `parse(str)` returns `'no match', tail`, where `tail` is the full string
+given as input.
 
-    lo = exec(tree, gl, lo)
+## Run function style
 
-The changes are:
+The high-level execution is run as:
 
-* It is understood that gl is meant to modified in place; don't return it.
-* A global exec function ensures that rule-specific exec functions work
-  with a copy of lo.
+    R:run(tree)
 
-The main downside to this is the inefficiency of making a copy of lo.
-Instead, we could use metatables to delegate lookups. This can work
-the way we want since __newindex is called on a derived table even when
-the key being written to exists in base table.
+where R is a run state set up as
+
+    R = Run:new()
+
+and is designed to be used for many consecutive trees.
+
+## API for run code
+
+Run code has access to several parameters and functions
+listed here.
+
+The `R` table itself is the run state of the current program.
+This table is meant to encapsulate the entire state of the program,
+including any representation of a stack, heap, symbol table, etc.
+How this interacts with a finish compiled program will evolve as
+pumba itself evolves.
+
+Here is a list of the currently existing functions or tables and
+how to use each one.
+
+### `R.frame` and `R.global`
+
+This table holds the entire run stack and provides support for
+nested variable scopes. Here are the primary typical operations you
+can perform with `R.frame`:
+
+* `x = R.frame[varname]` - This is a lookup of whatever variable is
+  in the current scope with name `varname`. This returns `nil` without
+  error if no such variable is in scope.
+* `R.frame[varname] = x` - This assigns `x` to `varname` at whatever
+  scope `varname` currently exists. If `varname` is new, it is created
+  as a new variable at the local scope.
+
+There are two cases not handled by these defaults:
+
+1. Explicitly create or read from a global. This can be performed
+   via `R.global[varname] = x` for creating/setting a value, or via
+   `x = R.global[varname]` for reading a value.
+
+2. Create a new local that shadows an existing same-name variable
+   that's outside the current local frame. This can be performed
+   via `R:new_local(varname, x)`, which assigns value `x` to the
+   local variable `varname`.
+
+### `R:push_scope` and `R:pop_scope`
+
+These functions push and pop the current scope of all variables.
+An example illustrates how these work:
+
+    R = Run:new()
+    R.frame.x = 3
+    R.frame.y = 5
+
+    R:push_scope()
+
+    print(R.frame.x)  --> 3
+    print(R.frame.y)  --> 5
+
+    R:new_local('x', 7)
+    R.frame.y = 9
+
+    print(R.frame.x)  --> 7
+    print(R.frame.y)  --> 9
+
+    R:pop_scope()
+
+    print(R.frame.x)  --> 3
+    print(R.frame.y)  --> 9
 
 --]]
 
 
 ------------------------------------------------------------------------------
--- Metaparse variables.
+-- Grammar data.
 ------------------------------------------------------------------------------
 
 -- rules[rule_name] = rule_data.
@@ -632,35 +708,35 @@ end
 -- Main.
 ------------------------------------------------------------------------------
 
--- Check that they provided an input file name.
-if not arg[1] then
-  print('Usage:')
-  print('  ' .. arg[0] .. ' <input_file>')
-  os.exit(2)
-end
-
-local in_file = arg[1]
-local f = assert(io.open(in_file, 'r'))
-local R = Run:new()
-
---local gl, lo = {}, {}
-local statement_num = 1
-for line in f:lines() do
-
-  print('\nvvvvvvvvv')
-  print('Before running statement ' .. statement_num)
-  print('R.frame:')
-  for k, v in pairs(R.frame) do print('  ', k, v) end
-  print('^^^^^^^^^\n')
-
-  local tree, tail = parse(line)
-  R:run(tree)
-
-  -- Uncomment the following line to print out some
-  -- interesting per-line values.
-  --pr_line_values(line, tree, tail, gl, lo)
-
-  statement_num = statement_num + 1
-
-end
-f:close()
+    -- Check that they provided an input file name.
+    if not arg[1] then
+      print('Usage:')
+      print('  ' .. arg[0] .. ' <input_file>')
+      os.exit(2)
+    end
+    
+    local in_file = arg[1]
+    local f = assert(io.open(in_file, 'r'))
+    local R = Run:new()
+    
+    --local gl, lo = {}, {}
+    local statement_num = 1
+    for line in f:lines() do
+    
+      print('\nvvvvvvvvv')
+      print('Before running statement ' .. statement_num)
+      print('R.frame:')
+      for k, v in pairs(R.frame) do print('  ', k, v) end
+      print('^^^^^^^^^\n')
+    
+      local tree, tail = parse(line)
+      R:run(tree)
+    
+      -- Uncomment the following line to print out some
+      -- interesting per-line values.
+      --pr_line_values(line, tree, tail, gl, lo)
+    
+      statement_num = statement_num + 1
+    
+    end
+    f:close()
