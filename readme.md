@@ -51,13 +51,16 @@ execution work.
 The general direction here is to move toward grammar
 and execution specification as input.
 
-## What is in progress
+### The `parse4.lua.md` script
 
-### The `parse4.lua` script
+Run this as `./parse4.lua.md 01.input`.
 
-The plan is to run this as `./parse4.lua 01.input`.
+This is a standard Lua script; I added the `md` extension
+so that github will render it as markdown, since it contains
+markdown-formatted comments that are easier to read when
+processed into html.
 
-This script is being built as the next
+This script is the next
 iteration of `parse3.lua` which moves the rule-specific
 tree execution work into more data-like strings. This
 is tricky, because it really is arbitrary code doing the
@@ -65,3 +68,17 @@ executing, but I want to set it up in a nice framework
 that encourages and empowers code patterns that will
 make life easier for both the language designer and
 the language user.
+
+That run framework is described in more detail in the
+comments in
+[the parse4 script](https://github.com/tylerneylon/pumba/blob/master/parse4.lua.md).
+
+## What is in progress
+
+I haven't decided exactly what to do next. Here are some ideas:
+
+- [ ] Write out a nice formal grammar for a C or JavaScript subset.
+- [ ] Carefully delineate the feature set for new languages specified in pumba.
+- [ ] Make a list of lessons learned from creating project water.
+- [ ] Learn how to work with DynASM.
+- [ ] Take a step forward from `01.input` and write a grammar and parser for that.
