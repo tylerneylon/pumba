@@ -151,8 +151,69 @@ An example illustrates how these work:
     -- rules[rule_name] = rule_data.
     -- A rule has at least the keys {kind, items}, where kind is either 'or' or
     -- 'seq', and the items are either rule names, a 'literal', or a "regex".
-    local rules = {}
 
+    -- Later, runnable rules also receive `run` keys. A run key is required for
+    -- `seq` rules but is optional for `or` rules.
+
+    local rules = {
+      ['statement']  = {kind = 'or',  items = {'assign', 'for', 'print'}},
+      ['assign']     = {kind = 'or',  items = {'std_assign', 'inc_assign'}},
+      ['std_assign'] = {kind = 'seq', items = {'var', "'='", 'expr'}},
+      ['inc_assign'] = {kind = 'seq', items = {'var', "'+='", 'expr'}},
+      ['expr']       = {kind = 'or',  items = {'var', 'num'}},
+      ['var']        = {kind = 'seq', items = {'"[A-Za-z_][A-Za-z0-9_]*"'}},
+      ['num']        = {kind = 'seq', items = {'"0|[1-9][0-9]*"'}},
+      ['for']        = {kind = 'seq', items = {"'for'", 'var', "'='", 'expr',
+                                               "'to'", 'expr', "':'", 'statement'}},
+      ['print']      = {kind = 'seq', items = {"'print'", 'expr'}},
+    }
+
+    -- Add a 'name' key to each rule so that it can passed around as a
+    -- self-contained object.
+    for name, rule in pairs(rules) do rule.name = name end
+
+--[[
+
+####TODO
+
+A future iteration can try to make the kid-reference syntax more intuitive.
+For example, maybe enable names like `tree.kids.expr` and `tree.kids.var` as
+part of a parsed `std_assign` string.
+
+--]]
+
+    rules['std_assign'].run = [[
+      R.frame[value(tree.kids[1])] = R:run(tree.kids[3])
+    ]]
+
+    rules['inc_assign'].run = [[
+      local var = value(tree.kids[1])
+      R.frame[var] = R.frame[var] + R:run(tree.kids[3])
+    ]]
+
+    rules['var'].run = [[
+      return R.frame[tree.value]
+    ]]
+
+    rules['num'].run = [[
+      return tonumber(tree.value)
+    ]]
+
+    rules['for'].run = [[
+      local min, max = R:run(tree.kids[4]), R:run(tree.kids[6])
+      R:push_scope()
+      local var_name = value(tree.kids[2])
+      R:new_local(var_name, min)
+      for i = min, max do
+        R.frame[var_name] = i
+        R:run(tree.kids[8])
+      end
+      R:pop_scope()
+    ]]
+
+    rules['print'].run = [[
+      print(R:run(tree.kids[2]))
+    ]]
 
 ------------------------------------------------------------------------------
 -- Metaparse functions.
@@ -226,166 +287,6 @@ An example illustrates how these work:
       return lit_str:gsub('[^A-Za-z]', '%%%0')
     end
 
-
-------------------------------------------------------------------------------
--- Grammar as data.
-------------------------------------------------------------------------------
-
-    rules = {
-      ['statement']  = {kind = 'or',  items = {'assign', 'for', 'print'}},
-      ['assign']     = {kind = 'or',  items = {'std_assign', 'inc_assign'}},
-      ['std_assign'] = {kind = 'seq', items = {'var', "'='", 'expr'}},
-      ['inc_assign'] = {kind = 'seq', items = {'var', "'+='", 'expr'}},
-      ['expr']       = {kind = 'or',  items = {'var', 'num'}},
-      ['var']        = {kind = 'seq', items = {'"[A-Za-z_][A-Za-z0-9_]*"'}},
-      ['num']        = {kind = 'seq', items = {'"0|[1-9][0-9]*"'}},
-      ['for']        = {kind = 'seq', items = {"'for'", 'var', "'='", 'expr',
-                                               "'to'", 'expr', "':'", 'statement'}},
-      ['print']      = {kind = 'seq', items = {"'print'", 'expr'}},
-    }
-
-    -- Add a 'name' key to each rule so that it can passed around as a
-    -- self-contained object.
-    for name, rule in pairs(rules) do rule.name = name end
-
-    -- What values are in scope in an exec block?
-    -- tree, gl, lo = a new stack deep copy (make it a shallow copy later)
-
---[[
-
-
-Here's my current plan for the pattern of interally-used exec functions.
-
-val = exec_fn(tree, global, frame, local)
-
-The global, frame, and local tables all map variable names to values.
-
-The global table is always a flat (metatable-free) table that anyone
-can edit and see.
-
-The frame table reveals keys set either as locals higher in the stack
-or as globals. New keys added here are set as globals.
-
-The local table is only visible within this exec_fn call, and to
-recursively-called exec functions. Callees will see these values both
-in the local and frame tables.
-
-Here's how each can be implemented:
-
-* `global` is a flat table. Easy.
-
-* `local` is a stacked table where all assignments are only visible
-  at this stack level or in recursive calls, while lookups can
-  see closest-scope values. This means that the immediate value of
-  `local` starts as an empty table, and failed index lookups are
-  delegated to frame.
-
-* `frame` is a stacked table, also empty at the immediate level.
-  Lookups are delegated to the frame from the caller's stack level,
-  which ends with the global table. Key assignments affect the highest-level
-  where the key exists; if it doesn't exist anywhere, the assignment
-  affects the global table.
-
-The intended usage is, from Lua's perspective:
-
-* For an assigment like "x = 3", implement it as "frame.x = 3".
-* For an assigment like "local x = 3", implement it as "local.x = 3".
-
-I expect the vast majority of rvalues to be from local and the vast
-majority of lvalues to be from either frame or local. The global table is
-sent in to support cases where the language might support explicit scoping
-jumps to the global level. I could consider cleaning up the interface, eg,
-by giving everyone a `scope` table with keys `global`, `frame`, and `local`,
-although I'm not happy about that making the code more verbose.
-
-Variable hoisting, as in JavaScript, is probably tricky to implement.
-That's ok because it's weird.
-
-How can closures work? It's difficult to anticipate the design decisions
-between here and a full implementation of closures, but I'm guessing that
-the user can make a table of upvalues (that is, of variables that would
-normally disappear but are held by held by the function) from the frame
-table. Lua's garbage collection plays nicely with this mechanic.
-
----
-
-Ok, I am revising the above design a bit. We'll have in scope the following:
-
-* `global` is a flat table as above.
-
-* `frame` is a stacked table where rvalues look up through the stack and
-  lvalues are assigned to either the nearest existing entry with the given
-  key, or are placed in new keys at the current stack level if the key is
-  new at every level. Intuitively, this matches Lua's behavior for an
-  assigment like "x = 3".
-
-The biggest change is that there is no `local` table. I realized that the
-only job `local` performed differently than `frame` was to allow new local
-variables to shadow existing higher-level variables of the same name. In
-order to keep that functionality, we could use some other setup, such as
-a new_local function that you call like so `new_local(var_name, value)`, where
-`var_name` is a string; implementation-wise, this would be like calling
-`rawset(frame, var_name, value)`.
-
-It could be `P:new_local` so that it can have access to the frame and any
-other related state for the current execution without internally using locals.
-So `global` and `frame` would be `P.global` and `P.frame`.
-
---]]
-
---[[
-
-TODO A future iteration can try to make the kid-reference syntax more intuitive.
-     For example, maybe enable names like tree.kids.expr and tree.kids.var as
-     part of a parsed `std_assign` string.
-
---]]
-
-    rules['std_assign'].run = [[
-      -- TEMP
-      print('std_assign; tree.name=' .. tree.name)
-      print('From std_assign run, about to call R:run on tree.kids[3]')
-      print('tree:')
-      pr_tree(tree)
-      print('tree.kids[3]:')
-      pr_tree(tree.kids[3])
-      local rvalue = R:run(tree.kids[3])
-      print('Just returned from calling R:run on tree.kids[3]')
-      --R.frame[value(tree.kids[1])] = R:run(tree.kids[3])
-      local v = value(tree.kids[1])
-      print('About to assign ' .. tostring(rvalue) .. ' to var ' .. v)
-      --R.frame[value(tree.kids[1])] = rvalue
-      R.frame[v] = rvalue
-    ]]
-
-    rules['inc_assign'].run = [[
-      local var = value(tree.kids[1])
-      R.frame[var] = R.frame[var] + R:run(tree.kids[3])
-    ]]
-
-    rules['var'].run = [[
-      return R.frame[tree.value]
-    ]]
-
-    rules['num'].run = [[
-      return tonumber(tree.value)
-    ]]
-
-    rules['for'].run = [[
-      local min, max = R:run(tree.kids[4]), R:run(tree.kids[6])
-      R:push_scope()
-      local var_name = value(tree.kids[2])
-      R:new_local(var_name, min)
-      for i = min, max do
-        R.frame[var_name] = i
-        R:run(tree.kids[8])
-      end
-      R:pop_scope()
-    ]]
-
-    rules['print'].run = [[
-      print(R:run(tree.kids[2]))
-    ]]
 
 ------------------------------------------------------------------------------
 -- Tree running functions.
