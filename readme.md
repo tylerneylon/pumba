@@ -75,7 +75,16 @@ comments in
 
 ## What is in progress
 
-I haven't decided exactly what to do next. Here are some ideas:
+### The `parse4.lua.md` script
+
+This script is being built to parse a simple C-like language.
+In doing so, I'm getting experience with function defintions,
+symbol tables, and rule specifications that may support
+regular-expression-like operators.
+
+### Future ideas
+
+Here are some ideas for future directions:
 
 - [ ] Write out a nice formal grammar for a C or JavaScript subset.
 - [ ] Carefully delineate the feature set for new languages specified in pumba.

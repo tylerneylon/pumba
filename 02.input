@@ -1,0 +1,5 @@
+void sayhi() {
+  printf("Hallo!\n");
+}
+
+sayhi();
