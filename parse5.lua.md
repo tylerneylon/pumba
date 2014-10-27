@@ -16,7 +16,7 @@ Here is an informal description of the grammar:
 
     statement -> fn_def | fn_call
 
-    fn_def -> type word '(' ')' '{' statement* '};
+    fn_def -> type word '(' ')' '{' statement* '}'
 
     fn_call -> word '(' (expr[, expr]*)? ')'
 
@@ -45,63 +45,31 @@ Here is an informal description of the grammar:
     -- `seq` rules but is optional for `or` rules.
 
     local rules = {
-      ['statement']  = {kind = 'or',  items = {'assign', 'for', 'print'}},
-      ['assign']     = {kind = 'or',  items = {'std_assign', 'inc_assign'}},
-      ['std_assign'] = {kind = 'seq', items = {'var', "'='", 'expr'}},
-      ['inc_assign'] = {kind = 'seq', items = {'var', "'+='", 'expr'}},
-      ['expr']       = {kind = 'or',  items = {'var', 'num'}},
-      ['var']        = {kind = 'seq', items = {'"[A-Za-z_][A-Za-z0-9_]*"'}},
-      ['num']        = {kind = 'seq', items = {'"0|[1-9][0-9]*"'}},
-      ['for']        = {kind = 'seq', items = {"'for'", 'var', "'='", 'expr',
-                                               "'to'", 'expr', "':'", 'statement'}},
-      ['print']      = {kind = 'seq', items = {"'print'", 'expr'}},
+      ['statement'] = {kind = 'or',  items = {'fn_def', 'fn_call'}},
+      ['fn_def']    = {kind = 'seq',
+                       items = {'type', 'word', "'('", "')'", "'{'",
+                                'statement*', "'}'"},
+      ['fn_call']   = {kind = 'seq', items = {'word', "'('", 'expr', "')'"}},
+      ['type']      = {kind = 'seq', items = {"'void'"}},
+      ['word']      = {kind = 'seq', items = {'"[A-Za-z_][A-Za-z0-9_]*"'}},
+      ['expr']      = {kind = 'or',  items = {'string'},
+      ['string']    = {kind = 'seq', items = {'""[^"]*""'}}
     }
 
     -- Add a 'name' key to each rule so that it can passed around as a
     -- self-contained object.
     for name, rule in pairs(rules) do rule.name = name end
 
---[[
-
-####TODO
-
-A future iteration can try to make the kid-reference syntax more intuitive.
-For example, maybe enable names like `tree.kids.expr` and `tree.kids.var` as
-part of a parsed `std_assign` string.
-
---]]
-
-    rules['std_assign'].run = [[
-      R.frame[value(tree.kids[1])] = R:run(tree.kids[3])
+    rules['fn_def'].run = [[
+      TODO
     ]]
 
-    rules['inc_assign'].run = [[
-      local var = value(tree.kids[1])
-      R.frame[var] = R.frame[var] + R:run(tree.kids[3])
+    rules['fn_call'].run = [[
+      TODO
     ]]
 
-    rules['var'].run = [[
-      return R.frame[tree.value]
-    ]]
-
-    rules['num'].run = [[
-      return tonumber(tree.value)
-    ]]
-
-    rules['for'].run = [[
-      local min, max = R:run(tree.kids[4]), R:run(tree.kids[6])
-      R:push_scope()
-      local var_name = value(tree.kids[2])
-      R:new_local(var_name, min)
-      for i = min, max do
-        R.frame[var_name] = i
-        R:run(tree.kids[8])
-      end
-      R:pop_scope()
-    ]]
-
-    rules['print'].run = [[
-      print(R:run(tree.kids[2]))
+    rules['string'].run = [[
+      TODO
     ]]
 
 ------------------------------------------------------------------------------
