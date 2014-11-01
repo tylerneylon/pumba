@@ -18,7 +18,7 @@ Here is an informal description of the grammar:
 
     fn_def -> type word '(' ')' '{' statement* '}'
 
-    fn_call -> word '(' (expr[, expr]*)? ')'
+    fn_call -> word '(' (expr[, expr]*)? ')' ';'
 
     type -> 'void'
 
@@ -28,10 +28,12 @@ Here is an informal description of the grammar:
 
     string -> "\"[^\"]*\""
 
+To focus on the running framework, I simplified the grammar of function call
+parameters to simply `expr*` even though this is not how a typical
+parameter list syntax would work.
+
 --]]
 
-
--- TODO HERE Specify the grammar data below.
 
 ------------------------------------------------------------------------------
 -- Grammar data.
@@ -48,11 +50,12 @@ Here is an informal description of the grammar:
       ['statement'] = {kind = 'or',  items = {'fn_def', 'fn_call'}},
       ['fn_def']    = {kind = 'seq',
                        items = {'type', 'word', "'('", "')'", "'{'",
-                                'statement*', "'}'"},
-      ['fn_call']   = {kind = 'seq', items = {'word', "'('", 'expr', "')'"}},
+                                'statement*', "'}'"}},
+      ['fn_call']   = {kind = 'seq',
+                       items = {'word', "'('", 'expr*', "')'", "';'"}},
       ['type']      = {kind = 'seq', items = {"'void'"}},
       ['word']      = {kind = 'seq', items = {'"[A-Za-z_][A-Za-z0-9_]*"'}},
-      ['expr']      = {kind = 'or',  items = {'string'},
+      ['expr']      = {kind = 'or',  items = {'string'}},
       ['string']    = {kind = 'seq', items = {'""[^"]*""'}}
     }
 
@@ -86,6 +89,9 @@ Here is an informal description of the grammar:
         return parse_literal(str, rule_name:sub(2, #rule_name - 1))
       elseif rule_name:sub(1, 1) == '"' then
         return parse_regex(str, rule_name:sub(2, #rule_name - 1))
+      elseif rule_name:sub(#rule_name, #rule_name) == '*' then
+        local rule = rules[rule_name:sub(1, #rule_name - 1)]
+        return parse_star_rule(str, rule)
       end
       local rule = rules[rule_name]
       if rule.kind == 'or' then
@@ -118,6 +124,17 @@ Here is an informal description of the grammar:
         tree.kids[#tree.kids + 1] = subtree
       end
       if #tree.kids == 1 then tree.value = tree.kids[1].value end
+      return tree, tail
+    end
+
+    function parse_star_rule(str, rule)
+      local tree = {name = '*' .. rule.name, kind = 'star', kids = {}}
+      local subtree, tail = nil, str
+      while true do
+        subtree, tail = parse_rule(tail, rule.name)
+        if subtree == 'no match' then break end
+        tree.kids[#tree.kids + 1] = subtree
+      end
       return tree, tail
     end
 
@@ -225,6 +242,11 @@ Here is an informal description of the grammar:
       return res
     end
 
+    -- Returns true if and only if str is either empty or all whitespace.
+    function is_empty(str)
+      return not not str:find('^%s*$')
+    end
+
 ------------------------------------------------------------------------------
 -- Debug functions.
 ------------------------------------------------------------------------------
@@ -279,10 +301,10 @@ Here is an informal description of the grammar:
 
     function wrap_metaparse_fn(metaparse_fn_name)
       local metaparse_fn = _G[metaparse_fn_name]
-      _G[metaparse_fn_name] = function (str, rule_name, subparsers)
+      _G[metaparse_fn_name] = function (str, rule_name)
         indent = indent .. '  '
         print(indent .. rule_name .. ' attempting from ' .. first_line(str))
-        local tree, tail = metaparse_fn(str, rule_name, subparsers)
+        local tree, tail = metaparse_fn(str, rule_name)
         print(indent .. rule_name .. (tree == 'no match' and ' failed' or ' succeeded'))
         indent = indent:sub(1, #indent - 2)
         return tree, tail
@@ -292,9 +314,9 @@ Here is an informal description of the grammar:
     -- Turn this on or off to control how verbose parsing is.
     --wrap_metaparse_fn('parse_or_rule')
     --wrap_metaparse_fn('parse_seq_rule')
-    --wrap_metaparse_fn('parse_rule')
+    wrap_metaparse_fn('parse_rule')
 
-    function pr_line_values(line, tree, tail, gl, lo)
+    function pr_line_values(line, tree, tail)
       print('')
       print('line:')
       print(line)
@@ -306,22 +328,6 @@ Here is an informal description of the grammar:
       print('')
       print('tail:')
       pr(tail)
-
-      -- Turn these lines on or off to toggle printing variable values after each
-      -- statement is executed.
-      ---[[
-      print('')
-      print('gl:')
-      pr(gl)
-
-      print('')
-      print('lo:')
-      pr(lo)
-
-      print('')
-      print('exec value:')
-      print(lo.val)
-      --]]
 
       print('')
     end
@@ -339,20 +345,28 @@ Here is an informal description of the grammar:
 
     local in_file = arg[1]
     local f = assert(io.open(in_file, 'r'))
+    local src = f:read('*a')
+    f:close()
     local R = Run:new()
 
-    --local gl, lo = {}, {}
     local statement_num = 1
-    for line in f:lines() do
+    while not is_empty(src) do
 
-      local tree, tail = parse(line)
-      R:run(tree)
+      local tree, tail = parse(src)
+
+      if tree == 'no match' then
+        print('Parse failed at this point:')
+        print(src)
+        break
+      end
+
+      --R:run(tree)
 
       -- Uncomment the following line to print out some
       -- interesting per-line values.
-      --pr_line_values(line, tree, tail, gl, lo)
+      pr_line_values(src, tree, tail)
 
       statement_num = statement_num + 1
+      src = tail
 
     end
-    f:close()
