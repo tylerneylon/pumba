@@ -64,15 +64,26 @@ parameter list syntax would work.
     for name, rule in pairs(rules) do rule.name = name end
 
     rules['fn_def'].run = [[
-      TODO
+      local body_trees = tree.kids[6].kids
+      R.frame[value(tree.kids[2])] = {kind = 'fn', body = body_trees}
     ]]
 
     rules['fn_call'].run = [[
-      TODO
+      local fn_name = value(tree.kids[1])
+      if fn_name == 'printf' then
+        for _, expr_tree in ipairs(tree.kids[3].kids) do
+          print(R:run(expr_tree))
+        end
+      else
+        local fn = R.frame[fn_name]
+        for _, statement_tree in ipairs(fn.body) do
+          R:run(statement_tree)
+        end
+      end
     ]]
 
     rules['string'].run = [[
-      TODO
+      return tree.value
     ]]
 
 ------------------------------------------------------------------------------
@@ -360,7 +371,7 @@ parameter list syntax would work.
         break
       end
 
-      --R:run(tree)
+      R:run(tree)
 
       -- Uncomment the following line to print out some
       -- interesting per-line values.
