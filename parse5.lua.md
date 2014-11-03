@@ -71,8 +71,9 @@ parameter list syntax would work.
     rules['fn_call'].run = [[
       local fn_name = value(tree.kids[1])
       if fn_name == 'printf' then
+        print(R_ind .. 'in printf')
         for _, expr_tree in ipairs(tree.kids[3].kids) do
-          print(R:run(expr_tree))
+          io.write(R:run(expr_tree))
         end
       else
         local fn = R.frame[fn_name]
@@ -83,7 +84,9 @@ parameter list syntax would work.
     ]]
 
     rules['string'].run = [[
-      return tree.value
+      print(R_ind .. 'in string run code, tree.value=' .. tostring(tree.value))
+      local s = tree.value
+      return s:sub(2, #s - 1):gsub('\\n', '\n')
     ]]
 
 ------------------------------------------------------------------------------
@@ -187,6 +190,8 @@ parameter list syntax would work.
       end
     end
 
+    R_ind = '..'  -- the run indent for debugging TEMP
+
     local Run = {}
 
     function Run:new()
@@ -211,10 +216,19 @@ parameter list syntax would work.
     end
 
     function Run:run(tree)
+      print(R_ind .. '{ run ' .. tree.name)
+      R_ind = R_ind .. '..'
+
       local run_tree, code = run_code(tree)
       code = 'local R, tree = ...\n' .. code
       local fn = loadstring(code, '<' .. run_tree.name .. '>')
-      return fn(self, run_tree)
+      --return fn(self, run_tree)
+      local v = fn(self, run_tree)
+
+      R_ind = R_ind:sub(3)  -- Drop two characters.
+      print(R_ind .. '} run ' .. tree.name)
+
+      return v
     end
 
     -- In the future, I'm guessing this function will have to be both better-
