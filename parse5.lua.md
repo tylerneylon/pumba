@@ -36,6 +36,19 @@ parameter list syntax would work.
 
 
 ------------------------------------------------------------------------------
+-- Settings.
+------------------------------------------------------------------------------
+
+    -- This turns on or off printing from within the run framework.
+    local do_run_dbg_print = false
+
+    -- This turns on or off printing of good/bad rule parsing attempts.
+    local do_mid_parse_dbg_print = false
+
+    -- This turns on or off printing debug info about parsing.
+    local do_post_parse_dbg_print = false
+
+------------------------------------------------------------------------------
 -- Grammar data.
 ------------------------------------------------------------------------------
 
@@ -71,7 +84,7 @@ parameter list syntax would work.
     rules['fn_call'].run = [[
       local fn_name = value(tree.kids[1])
       if fn_name == 'printf' then
-        print(R_ind .. 'in printf')
+        R:dbg_print('in printf')
         for _, expr_tree in ipairs(tree.kids[3].kids) do
           io.write(R:run(expr_tree))
         end
@@ -84,7 +97,7 @@ parameter list syntax would work.
     ]]
 
     rules['string'].run = [[
-      print(R_ind .. 'in string run code, tree.value=' .. tostring(tree.value))
+      R:dbg_print('in string run code, tree.value=' .. tostring(tree.value))
       local s = tree.value
       return s:sub(2, #s - 1):gsub('\\n', '\n')
     ]]
@@ -190,14 +203,13 @@ parameter list syntax would work.
       end
     end
 
-    R_ind = '..'  -- the run indent for debugging TEMP
-
     local Run = {}
 
     function Run:new()
-      local run = {}
+      local run  = {}
       run.global = {}
-      run.frame = run.global
+      run.frame  = run.global
+      run.ind    = '..'  -- Used in debug printing.
       self.__index = self
       return setmetatable(run, self)
     end
@@ -215,19 +227,22 @@ parameter list syntax would work.
       rawset(self.frame, name, val)
     end
 
+    function Run:dbg_print(str)
+      if not do_run_dbg_print then return end
+      if str:sub(1, 1) == '}' then self.ind = self.ind:sub(3) end
+      print(self.ind .. str)
+      if str:sub(1, 1) == '{' then self.ind = '..' .. self.ind end
+    end
+
     function Run:run(tree)
-      print(R_ind .. '{ run ' .. tree.name)
-      R_ind = R_ind .. '..'
+      self:dbg_print('{ run ' .. tree.name)
 
       local run_tree, code = run_code(tree)
       code = 'local R, tree = ...\n' .. code
       local fn = loadstring(code, '<' .. run_tree.name .. '>')
-      --return fn(self, run_tree)
       local v = fn(self, run_tree)
 
-      R_ind = R_ind:sub(3)  -- Drop two characters.
-      print(R_ind .. '} run ' .. tree.name)
-
+      self:dbg_print('} run ' .. tree.name)
       return v
     end
 
@@ -339,7 +354,10 @@ parameter list syntax would work.
     -- Turn this on or off to control how verbose parsing is.
     --wrap_metaparse_fn('parse_or_rule')
     --wrap_metaparse_fn('parse_seq_rule')
-    wrap_metaparse_fn('parse_rule')
+
+    if do_mid_parse_dbg_print then
+      wrap_metaparse_fn('parse_rule')
+    end
 
     function pr_line_values(line, tree, tail)
       print('')
@@ -385,11 +403,11 @@ parameter list syntax would work.
         break
       end
 
-      R:run(tree)
+      if do_parse_dbg_print then
+        pr_line_values(src, tree, tail)
+      end
 
-      -- Uncomment the following line to print out some
-      -- interesting per-line values.
-      pr_line_values(src, tree, tail)
+      R:run(tree)
 
       statement_num = statement_num + 1
       src = tail
