@@ -73,14 +73,20 @@ That run framework is described in more detail in the
 comments in
 [the parse4 script](https://github.com/tylerneylon/pumba/blob/master/parse4.lua.md).
 
-## What is in progress
-
 ### The `parse5.lua.md` script
 
-This script is being built to parse a simple C-like language.
-In doing so, I'm getting experience with function defintions,
+Run this as `./parse5.lua.md 02.input`.
+
+This script parses a simple C-like language.
+I'm getting experience with function definitions,
 symbol tables, and rule specifications that may support
 regular-expression-like operators.
+
+## What is in progress
+
+Next I plan to write up lessons learned from the original project water.
+
+This write-up will probably be a markdown document in this repo.
 
 ### Future ideas
 
@@ -90,4 +96,4 @@ Here are some ideas for future directions:
 - [ ] Carefully delineate the feature set for new languages specified in pumba.
 - [ ] Make a list of lessons learned from creating project water.
 - [ ] Learn how to work with DynASM.
-- [ ] Take a step forward from `01.input` and write a grammar and parser for that.
+- [x] Take a step forward from `01.input` and write a grammar and parser for that.
