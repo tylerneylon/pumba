@@ -84,9 +84,8 @@ regular-expression-like operators.
 
 ## What is in progress
 
-Next I plan to write up lessons learned from the original project water.
-
-This write-up will probably be a markdown document in this repo.
+I'm in the process of writing up
+[lessons learned from the original project water](https://github.com/tylerneylon/pumba/blob/master/lessons_from_water.md).
 
 ### Future ideas
 
