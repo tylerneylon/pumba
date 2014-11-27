@@ -66,7 +66,47 @@ or languages like Python that use whitespace for indentation but otherwise don't
 
 ## Infix operators are tricky
 
-TODO
+I tried many ideas to set up an elegant infix-operator notation.
+
+Infix notation is so common that I don't think grammar-writers should have to jump through
+hoops to specify general expressions with precedence of operators. Programmers already think
+clearly in terms of a general idea of an expression, and that is built on top of various
+*n*-ary functions which are interpreted in a certain order based on the operators and their
+positions in the syntax.
+
+This convenience is to be balanced with the simplicity of both the core grammar api itself, and
+how much work the lowest layers of grammar have to perform in order to expose the convenient
+version of the interface.
+
+In the end, my favorite core syntax for performing this was to accept a core syntax like this:
+
+    infix_item@regular_item
+
+which is shorthand for:
+
+    space infix_item space regular_item
+
+The language-designer-facing syntax can then be:
+
+    item+infix
+
+which translates to:
+
+    item infix@item | item
+
+Similarly,
+
+    item*infix
+
+translates to:
+
+    item+infix | Empty
+
+To be honest, I'd really like the language-designer to have an easier time specifying
+precedence of operators from here, so I may continue to work on this syntax. Always keep in
+mind, though, that my goal is *not* simply to make life easy for the language-specifier, but to
+keep the entire system, top to bottom, as simple as possible. I feel that design philosophy
+results in superior long-term usage.
 
 ## Debugging a language is tricky
 
