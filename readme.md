@@ -18,74 +18,29 @@ more elegant than what I started with in Project Water.
 
 ## What works so far
 
-### The `parse1.lua` script
+Here are a few example cases you can try out:
 
-You can run
+    ./parse1.lua 00.input  # parse and evaluate simple math expressions
 
-    ./parse1.lua 00.input
+    ./parse2.lua 01.input  # parse and run a simple for loop
 
-to parse and execute plus/times positive-integer
-math expressions. The `parse1.lua` script is a kind
-of hello-world of parser-executer scripts.
+    # parse3.lua does the same work as parse2.lua with cleaner code.
 
-### The `parse2.lua` script
+    # parse4.lua.md does the same work, but is further re-organized,
+    #               and is written with reader-friendly markdown comments.
 
-Run this script as `./parse2.lua 01.input`.
+    ./parse5.lua.md 02.input  # parse and run a small subset of C
 
-This script can parse a simple language based
-on the following example:
-
-    s = 0
-    for i = 1 to 100: s += i
-    print s
-
-### The `parse3.lua` script
-
-Run this as `./parse3.lua 01.input`.
-
-This script is
-an iteration of `parse2.lua` which puts more work into
-metafunctions and data-fies much of the grammar and
-execution work.
-
-The general direction here is to move toward grammar
-and execution specification as input.
-
-### The `parse4.lua.md` script
-
-Run this as `./parse4.lua.md 01.input`.
-
-This is a standard Lua script; I added the `md` extension
-so that github will render it as markdown, since it contains
-markdown-formatted comments that are easier to read when
-processed into html.
-
-This script is the next
-iteration of `parse3.lua` which moves the rule-specific
-tree execution work into more data-like strings. This
-is tricky, because it really is arbitrary code doing the
-executing, but I want to set it up in a nice framework
-that encourages and empowers code patterns that will
-make life easier for both the language designer and
-the language user.
-
-That run framework is described in more detail in the
-comments in
-[the parse4 script](https://github.com/tylerneylon/pumba/blob/master/parse4.lua.md).
-
-### The `parse5.lua.md` script
-
-Run this as `./parse5.lua.md 02.input`.
-
-This script parses a simple C-like language.
-I'm getting experience with function definitions,
-symbol tables, and rule specifications that may support
-regular-expression-like operators.
+More detailed explanations of the progress in each of these scripts is
+explained in
+[what_works.md](https://github.com/tylerneylon/pumba/blob/master/what_works.md).
 
 ## What is in progress
 
-I'm in the process of writing up
-[lessons learned from the original project water](https://github.com/tylerneylon/pumba/blob/master/lessons_from_water.md).
+I've set up `03.input` as a grammar for the subset of C in `02.input`.
+I plan to make `parse6.lua.md` as the next iteration which can parse the
+grammar. The eventual goal is to add run strings within the grammar, and
+then to include the C code just after this.
 
 ### Future ideas
 
@@ -93,6 +48,12 @@ Here are some ideas for future directions:
 
 - [ ] Write out a nice formal grammar for a C or JavaScript subset.
 - [ ] Carefully delineate the feature set for new languages specified in pumba.
-- [ ] Make a list of lessons learned from creating project water.
+- [x] Make a list of lessons learned from creating project water.
 - [ ] Learn how to work with DynASM.
 - [x] Take a step forward from `01.input` and write a grammar and parser for that.
+
+## Notes from Project Water
+
+I've also written up some
+[lessons learned from the original project water](https://github.com/tylerneylon/pumba/blob/master/lessons_from_water.md).
+
