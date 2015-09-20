@@ -27,7 +27,7 @@ Usage:
     local do_mid_parse_dbg_print = false
 
     -- This turns on or off printing debug info about parsing.
-    local do_post_parse_dbg_print = false
+    local do_post_parse_dbg_print = true
 
 ------------------------------------------------------------------------------
 -- Grammar data.
@@ -42,61 +42,37 @@ Usage:
 
     local rules = {
       ['statement'] = {kind = 'or', items = {'rules_start', 'rule'}},
-      ['rules_start'] = {kind = 'seq', items = {'>', '\n'}},
+      ['rules_start'] = {kind = 'seq', items = {[['>']], "'\n'"}},
       ['rule'] = {kind = 'seq', items = {'rule_name', "'-->'",
-                                         'rule_items', '\n'}},
+                                         'rule_items', "'\n'"}},
       -- TODO Add a comment explaining this rule if I keep it.
       ['rule_items'] = {kind = 'or',
                         items = {'multi_or_items',
                                  'seq_items',
                                  'single_or_item'}},
       ['single_or_item'] = {kind = 'seq', items = {'rule_name'}},
-      ['multi_or_item'] = {kind = 'seq',
-                           items = {'basic_item',
-                                    'or_and_item',
-                                    'or_and_item*'}},
+      ['multi_or_items'] = {kind = 'seq',
+                            items = {'basic_item',
+                                     'or_and_item',
+                                     'or_and_item*'}},
       ['seq_items'] = {kind = 'or', items = {'multi_seq_items',
                                              'single_seq_item'}},
       ['multi_seq_items'] = {kind = 'seq', items = {'item', 'item*'}},
       ['single_seq_item'] = {kind = 'or', items = {'literal', 'regex'}},
       ['or_and_item'] = {kind = 'seq', items = {"'|'", 'basic_item'}},
       ['literal'] = {kind = 'seq', items = {[["'[^']*'"]]}},
-      ['regex'] = {kind = 'seq', items = {[[""[^"]*""]]}},
+      -- TODO Fix regular expression parsing.
+      ['regex'] = {kind = 'seq', items = {[[""[^ ]*" "]]}},
       ['rule_name'] = {kind = 'seq', items = {[["[A-Za-z_][A-Za-z0-9_]*"]]}},
       ['item'] = {kind = 'or', items = {'star_item', 'basic_item'}},
       ['basic_item'] = {kind = 'or', items = {'literal', 'regex', 'rule_name'}},
-      ['star_item'] = {kind = 'seq', items = {'basic_item', [['*']]}
+      ['star_item'] = {kind = 'seq', items = {'basic_item', [['*']]}}
     }
 
-    -- Add a 'name' key to each rule so that it can passed around as a
+    -- Add a 'name' key to each rule so that it can be passed around as a
     -- self-contained object.
     for name, rule in pairs(rules) do rule.name = name end
 
-    rules['fn_def'].run = [[
-      local body_trees = tree.kids[6].kids
-      R.frame[value(tree.kids[2])] = {kind = 'fn', body = body_trees}
-    ]]
-
-    rules['fn_call'].run = [[
-      local fn_name = value(tree.kids[1])
-      if fn_name == 'printf' then
-        R:dbg_print('in printf')
-        for _, expr_tree in ipairs(tree.kids[3].kids) do
-          io.write(R:run(expr_tree))
-        end
-      else
-        local fn = R.frame[fn_name]
-        for _, statement_tree in ipairs(fn.body) do
-          R:run(statement_tree)
-        end
-      end
-    ]]
-
-    rules['string'].run = [[
-      R:dbg_print('in string run code, tree.value=' .. tostring(tree.value))
-      local s = tree.value
-      return s:sub(2, #s - 1):gsub('\\n', '\n')
-    ]]
 
 ------------------------------------------------------------------------------
 -- Metaparse functions.
@@ -108,6 +84,7 @@ Usage:
     end
 
     function parse_rule(str, rule_name)
+      --print('parse_rule, rule_name = "' .. rule_name .. '"')
       if rule_name:sub(1, 1) == "'" then
         return parse_literal(str, rule_name:sub(2, #rule_name - 1))
       elseif rule_name:sub(1, 1) == '"' then
@@ -117,6 +94,12 @@ Usage:
         return parse_star_rule(str, rule)
       end
       local rule = rules[rule_name]
+
+      if rule == nil then
+        print('Error in internal grammar! missing rule: ' .. rule_name)
+        os.exit(1)
+      end
+
       if rule.kind == 'or' then
         return parse_or_rule(str, rule)
       elseif rule.kind == 'seq' then
@@ -162,8 +145,11 @@ Usage:
     end
 
     function parse_literal(str, lit_str)
-      local re = '^%s*(' .. escaped_lit(lit_str) .. ')'
+      --print('parse_literal(' .. str .. ', ' .. lit_str .. ')')
+      local re = '^ *(' .. escaped_lit(lit_str) .. ')'
+      --print('re=' .. re)
       local s, e, val = str:find(re)
+      --print('s, e, val = ', s, e, val)
       if s == nil then return 'no match', str end
       return {name = '<lit>', value = val}, str:sub(e + 1)
     end
@@ -171,7 +157,7 @@ Usage:
     function parse_regex(str, full_re)
       local re_list = {}
       for re_item in full_re:gmatch('[^|]+') do
-        re_list[#re_list + 1] = '^%s*(' .. re_item .. ')'
+        re_list[#re_list + 1] = '^ *(' .. re_item .. ')'
       end
       for _, re in ipairs(re_list) do
         local s, e, val = str:find(re)
@@ -335,15 +321,21 @@ Usage:
 
     indent = ''
 
+    function print_metaparse_info(fn_name, fn, str, rule_name)
+      indent = indent .. '  '
+      --io.write(indent .. fn_name .. ': ')
+      print(indent .. rule_name .. ' attempting from ' .. first_line(str))
+      local tree, tail = fn()
+      print(indent .. rule_name .. (tree == 'no match' and ' failed' or ' succeeded'))
+      indent = indent:sub(1, #indent - 2)
+      return tree, tail
+    end
+
     function wrap_metaparse_fn(metaparse_fn_name)
       local metaparse_fn = _G[metaparse_fn_name]
-      _G[metaparse_fn_name] = function (str, rule_name)
-        indent = indent .. '  '
-        print(indent .. rule_name .. ' attempting from ' .. first_line(str))
-        local tree, tail = metaparse_fn(str, rule_name)
-        print(indent .. rule_name .. (tree == 'no match' and ' failed' or ' succeeded'))
-        indent = indent:sub(1, #indent - 2)
-        return tree, tail
+      _G[metaparse_fn_name] = function (str, rule)
+        local fn = function() return metaparse_fn(str, rule) end
+        return print_metaparse_info(metaparse_fn_name, fn, str, rule.name)
       end
     end
 
@@ -352,7 +344,11 @@ Usage:
     --wrap_metaparse_fn('parse_seq_rule')
 
     if do_mid_parse_dbg_print then
-      wrap_metaparse_fn('parse_rule')
+      local original_parse_rule = parse_rule
+      parse_rule = function (str, rule_name)
+        local fn = function () return original_parse_rule(str, rule_name) end
+        return print_metaparse_info('parse_rule', fn, str, rule_name)
+      end
     end
 
     function pr_line_values(line, tree, tail)
@@ -397,13 +393,15 @@ Usage:
         print('Parse failed at this point:')
         print(src)
         break
+      elseif do_post_parse_dbg_print then
+        pr_tree(tree)
       end
 
       if do_parse_dbg_print then
         pr_line_values(src, tree, tail)
       end
 
-      R:run(tree)
+      -- R:run(tree)
 
       statement_num = statement_num + 1
       src = tail

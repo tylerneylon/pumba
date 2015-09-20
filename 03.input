@@ -1,8 +1,8 @@
 >
   statement --> fn_def | fn_call
   fn_def    --> type word '(' ')' '{' statement* '}'
-  fn_call   --> word '(' expr? ')'
+  fn_call   --> word '(' expr ')'
   type      --> 'void'
-  word      --> "[A-Za-z_][A-Za-z0-9_]*"
+  word      --> "[A-Za-z_][A-Za-z0-9_]*" 
   expr      --> string
-  string    --> "\"[^\"]*\""
+  string    --> "\"[^\"]*\"" 

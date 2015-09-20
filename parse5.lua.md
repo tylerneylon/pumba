@@ -72,7 +72,7 @@ parameter list syntax would work.
       ['string']    = {kind = 'seq', items = {'""[^"]*""'}}
     }
 
-    -- Add a 'name' key to each rule so that it can passed around as a
+    -- Add a 'name' key to each rule so that it can be passed around as a
     -- self-contained object.
     for name, rule in pairs(rules) do rule.name = name end
 
