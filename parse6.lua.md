@@ -41,32 +41,32 @@ Usage:
     -- `seq` rules but is optional for `or` rules.
 
     local rules = {
-      ['statement'] = {kind = 'or', items = {'>', 'rule'}}
-      ['rule'] = {kind = 'seq', items = {'rule_name', "'-->'", 'rule_items'}}
+      ['statement'] = {kind = 'or', items = {'rules_start', 'rule'}},
+      ['rules_start'] = {kind = 'seq', items = {'>', '\n'}},
+      ['rule'] = {kind = 'seq', items = {'rule_name', "'-->'",
+                                         'rule_items', '\n'}},
       -- TODO Add a comment explaining this rule if I keep it.
       ['rule_items'] = {kind = 'or',
                         items = {'multi_or_items',
                                  'seq_items',
-                                 'single_or_item'}}
-      ['single_or_item'] = {kind = 'seq', items = {'rule_name'}}
+                                 'single_or_item'}},
+      ['single_or_item'] = {kind = 'seq', items = {'rule_name'}},
       ['multi_or_item'] = {kind = 'seq',
-                           items = {'item',
+                           items = {'basic_item',
                                     'or_and_item',
-                                    'or_and_item*'}}
+                                    'or_and_item*'}},
       ['seq_items'] = {kind = 'or', items = {'multi_seq_items',
-                                             'single_seq_item'}}
-      ['multi_seq_items'] = {kind = 'seq', items = {'item', 'item*'}}
-      ['single_seq_item'] = {kind = 'or', items = {'literal', 'regex'}}
-      ['or_and_item'] = {kind = 'seq', items = {"'|'", 'item'}}
-      ['literal'] = {kind = 'seq', items = {[["'[^']*'"]]}}
-      ['regex'] = {kind = 'seq', items = {[[""[^"]*""]]}}
-      ['rule_name'] = {kind = 'seq', items = {[["[A-Za-z_][A-Za-z0-9_]*"]]}}
-      ['item'] = {kind = 'or', items = {'literal', 'regex', 'rule_name'}}
-
-    -- And only now, at the end, do I realize that I haven't accounted for
-    -- star items, and that my end-of-line handling is not so good.
-    -- TODO Fix all that.
-
+                                             'single_seq_item'}},
+      ['multi_seq_items'] = {kind = 'seq', items = {'item', 'item*'}},
+      ['single_seq_item'] = {kind = 'or', items = {'literal', 'regex'}},
+      ['or_and_item'] = {kind = 'seq', items = {"'|'", 'basic_item'}},
+      ['literal'] = {kind = 'seq', items = {[["'[^']*'"]]}},
+      ['regex'] = {kind = 'seq', items = {[[""[^"]*""]]}},
+      ['rule_name'] = {kind = 'seq', items = {[["[A-Za-z_][A-Za-z0-9_]*"]]}},
+      ['item'] = {kind = 'or', items = {'star_item', 'basic_item'}},
+      ['basic_item'] = {kind = 'or', items = {'literal', 'regex', 'rule_name'}},
+      ['star_item'] = {kind = 'seq', items = {'basic_item', [['*']]}
+    }
 
     -- Add a 'name' key to each rule so that it can passed around as a
     -- self-contained object.
