@@ -1,0 +1,26 @@
+>
+  statement --> fn_def | fn_call
+  fn_def -->
+    type work '(' ')' '{' statement* '}'
+  fn_call -->
+    word '(' end_of_fn_call
+  end_of_fn_call --> expr_end_paren | end_paren
+  expr_end_paren -->
+    expr ')'
+  end_paren -->
+    ')'
+  type -->
+    'void'
+  word -->
+    "[A-Za-z_][A-Za-z0-9_]*" 
+  expr --> string
+  string -->
+    "\"" -str
+
+> str
+  phrase --> escape_seq | char
+  escape_seq -->
+    "\\\\(.)"
+  char -->
+    "."
+    : if self:code() == '"' then mode:pop() end

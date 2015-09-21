@@ -3,15 +3,28 @@
 
 # parse6.lua.md
 
-* TODO Make this file able to parse `03.input`.
-
 *This file is designed to be read after being processed as markdown.*
 
 Usage:
 
     ./parse6.lua.md 03.input
 
-* TODO Explain what this script does, similarly to parse5.lua.md.
+This file is a first step toward parsing grammars. It is able to parse the
+simple grammar of `03.input`, and prints out the resulting parse tree.
+
+In working on this script, I realized that the current setup would already
+benefit from parse modes in order to nicely parse strings. I'm also getting
+some experience to help decide which syntax elements can work at this low
+level versus which may fit better at a higher level of abstraction.
+For example, I suspect that star-subrules and question-mark-subrules
+can fit at this low level --
+these are subrules, aka items, on the right side of a rule definition,
+that may expand to either zero-or-more or zero-or-one instances of a
+given subrule. However, I think it's more net work to allow both
+or-rules and seq-rules to be one-liners than it is to force them to
+be syntactically different at this level. More specifically, I'm
+leaning toward forcing or-rules to be one-liners and seq-rules to
+be multiline and indent-based.
 
 --]]
 
