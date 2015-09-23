@@ -31,16 +31,17 @@ Here are a few example cases you can try out:
 
     ./parse5.lua.md 02.input  # parse and run a small subset of C
 
+    ./parse6.lua.md 03.input  # parse a set of grammar rules
+
 More detailed explanations of the progress in each of these scripts is
 explained in
 [what_works.md](https://github.com/tylerneylon/pumba/blob/master/what_works.md).
 
 ## What is in progress
 
-I've set up `03.input` as a grammar for the subset of C in `02.input`.
-I plan to make `parse6.lua.md` as the next iteration which can parse the
-grammar. The eventual goal is to add run strings within the grammar, and
-then to include the C code just after this.
+I've set up `04.input` as a newer C subset grammar. My plan is to set up
+`parse7.lua.md` as a script that uses mode-based parsing -- both internally
+and externally -- to parse this file.
 
 ### Future ideas
 

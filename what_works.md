@@ -67,3 +67,23 @@ I'm getting experience with function definitions,
 symbol tables, and rule specifications that may support
 regular-expression-like operators.
 
+### The `parse6.lua.md` script
+
+Run this as `./parse6.lua.md 03.input`.
+
+This script performs a simplified parse of a grammar specification.
+The main reason I consider it simplified is that it doesn't handle
+quoted strings very well. For example, regular expressions are parsed strangely
+in that they are expected to not contain spaces and are expected to end with
+a double quote followed by a space.
+
+Theoretically, I think I could get a simple string syntax parsed with a
+regular expression, but I'd rather dive into parsing modes at this point since
+those are coming up soon, and I suspect working with strings may be easier with
+them.
+
+I also plan to require or-rules to be single-line and seq-rules to be multiline,
+which was the case in project water and which eliminated some ambiguity which
+was not useful. In particular, I don't plan to have this syntax be the usual
+human-facing one, so ease-of-use - though still important - can be balanced
+slightly in favor of easy-of-implementation at this point.

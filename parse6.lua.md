@@ -58,7 +58,11 @@ be multiline and indent-based.
       ['rules_start'] = {kind = 'seq', items = {[['>']], "'\n'"}},
       ['rule'] = {kind = 'seq', items = {'rule_name', "'-->'",
                                          'rule_items', "'\n'"}},
-      -- TODO Add a comment explaining this rule if I keep it.
+      -- This rule is designed so that single-subrules will be treated as
+      -- or-rules by default. The advantage of that would be the automatic
+      -- delegation of method calls to the subrule. However, since I now plan to
+      -- use simpler syntax to differentiate between or-rules and seq-rules,
+      -- this concern will no longer be relevant.
       ['rule_items'] = {kind = 'or',
                         items = {'multi_or_items',
                                  'seq_items',
@@ -74,7 +78,7 @@ be multiline and indent-based.
       ['single_seq_item'] = {kind = 'or', items = {'literal', 'regex'}},
       ['or_and_item'] = {kind = 'seq', items = {"'|'", 'basic_item'}},
       ['literal'] = {kind = 'seq', items = {[["'[^']*'"]]}},
-      -- TODO Fix regular expression parsing.
+      -- Future: Fix regular expression parsing in a future parseX script.
       ['regex'] = {kind = 'seq', items = {[[""[^ ]*" "]]}},
       ['rule_name'] = {kind = 'seq', items = {[["[A-Za-z_][A-Za-z0-9_]*"]]}},
       ['item'] = {kind = 'or', items = {'star_item', 'basic_item'}},
