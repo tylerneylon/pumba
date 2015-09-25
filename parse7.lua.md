@@ -42,37 +42,25 @@ It's not done yet.
     -- Later, runnable rules also receive `run` keys. A run key is required for
     -- `seq` rules but is optional for `or` rules.
 
+    -- TODO Consider support question-items in this grammar.
+
     local rules = {
-      ['statement'] = {kind = 'or', items = {'rules_start', 'rule'}},
-      ['rules_start'] = {kind = 'seq', items = {[['>']], "'\n'"}},
-      ['rule'] = {kind = 'seq', items = {'rule_name', "'-->'",
+      phrase = {kind = 'or', items = {'statement'}}
+      statement = {kind = 'or', items = {'rules_start', 'rule'}},
+      rules_start = {kind = 'seq', items = {[['>']], "'\n'"}},
+      rule = {kind = 'seq', items = {'rule_name', "'-->'",
                                          'rule_items', "'\n'"}},
-      -- This rule is designed so that single-subrules will be treated as
-      -- or-rules by default. The advantage of that would be the automatic
-      -- delegation of method calls to the subrule. However, since I now plan to
-      -- use simpler syntax to differentiate between or-rules and seq-rules,
-      -- this concern will no longer be relevant.
-      ['rule_items'] = {kind = 'or',
-                        items = {'multi_or_items',
-                                 'seq_items',
-                                 'single_or_item'}},
-      ['single_or_item'] = {kind = 'seq', items = {'rule_name'}},
-      ['multi_or_items'] = {kind = 'seq',
-                            items = {'basic_item',
-                                     'or_and_item',
-                                     'or_and_item*'}},
-      ['seq_items'] = {kind = 'or', items = {'multi_seq_items',
-                                             'single_seq_item'}},
-      ['multi_seq_items'] = {kind = 'seq', items = {'item', 'item*'}},
-      ['single_seq_item'] = {kind = 'or', items = {'literal', 'regex'}},
-      ['or_and_item'] = {kind = 'seq', items = {"'|'", 'basic_item'}},
-      ['literal'] = {kind = 'seq', items = {[["'[^']*'"]]}},
+      rule_items = {kind = 'or', items = {'or_items', 'seq_items'}
+      or_items = {kind = 'seq', items = {'basic_item', 'or_and_item*', "'\n'"}}
+      seq_items = {kind = 'seq', items = {"'\n'", 'item', 'item*', "'\n'"}}
+      basic_item = {kind = 'or', items = {'literal', 'regex', 'rule_name'}},
+      or_and_item = {kind = 'seq', items = {"'|'", 'basic_item'}},
+      item = {kind = 'or', items = {'star_item', 'basic_item'}},
+      literal = {kind = 'seq', items = {[["'[^']*'"]]}},
       -- Future: Fix regular expression parsing in a future parseX script.
-      ['regex'] = {kind = 'seq', items = {[[""[^ ]*" "]]}},
-      ['rule_name'] = {kind = 'seq', items = {[["[A-Za-z_][A-Za-z0-9_]*"]]}},
-      ['item'] = {kind = 'or', items = {'star_item', 'basic_item'}},
-      ['basic_item'] = {kind = 'or', items = {'literal', 'regex', 'rule_name'}},
-      ['star_item'] = {kind = 'seq', items = {'basic_item', [['*']]}}
+      regex = {kind = 'seq', items = {[[""[^ ]*" "]]}},
+      rule_name = {kind = 'seq', items = {[["[A-Za-z_][A-Za-z0-9_]*"]]}},
+      star_item = {kind = 'seq', items = {'basic_item', [['*']]}}
     }
 
     -- Add a 'name' key to each rule so that it can be passed around as a
