@@ -42,7 +42,7 @@ It's not done yet.
     -- Later, runnable rules also receive `run` keys. A run key is required for
     -- `seq` rules but is optional for `or` rules.
 
-    -- TODO Consider support question-items in this grammar.
+    -- TODO Be able to parse modes.
 
     local rules = {
       phrase = {kind = 'or', items = {'statement'}}
@@ -55,12 +55,15 @@ It's not done yet.
       seq_items = {kind = 'seq', items = {"'\n'", 'item', 'item*', "'\n'"}}
       basic_item = {kind = 'or', items = {'literal', 'regex', 'rule_name'}},
       or_and_item = {kind = 'seq', items = {"'|'", 'basic_item'}},
-      item = {kind = 'or', items = {'star_item', 'basic_item'}},
+      item = {kind = 'or', items = {'star_item',
+                                    'question_item',
+                                    'basic_item'}},
       literal = {kind = 'seq', items = {[["'[^']*'"]]}},
       -- Future: Fix regular expression parsing in a future parseX script.
       regex = {kind = 'seq', items = {[[""[^ ]*" "]]}},
       rule_name = {kind = 'seq', items = {[["[A-Za-z_][A-Za-z0-9_]*"]]}},
-      star_item = {kind = 'seq', items = {'basic_item', [['*']]}}
+      star_item = {kind = 'seq', items = {'basic_item', [['*']]}},
+      question_item = {kind = 'seq', items = {'basic_item', [['?']]}}
     }
 
     -- Add a 'name' key to each rule so that it can be passed around as a
