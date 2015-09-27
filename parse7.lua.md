@@ -44,7 +44,11 @@ It's not done yet.
 
     -- TODO Be able to parse modes.
 
-    local rules = {
+    -- all_rules[<mode>] = {<rule_name> = {kind, items, name}}
+    -- The global mode has the key '<global>'.
+    local all_rules = {}
+
+    all_rules['<global>'] =
       phrase = {kind = 'or', items = {'statement'}}
       statement = {kind = 'or', items = {'rules_start', 'rule'}},
       rules_start = {kind = 'seq', items = {[['>']], "'\n'"}},
@@ -68,16 +72,35 @@ It's not done yet.
 
     -- Add a 'name' key to each rule so that it can be passed around as a
     -- self-contained object.
-    for name, rule in pairs(rules) do rule.name = name end
+    for name, rule in pairs(all_rules['<global>']) do rule.name = name end
+
+    -- Set up the rules table that is capable of changing modes.
+
+    local rules = {}
+
+    local rules_mt = {}
+    rules_mt.__index = rules_mt
+
+    function rule_mt.push_mode(mode_name)
+      local meta = {__index = rules, up = rules}
+      rules = setmetatable(all_rules[mode_name], meta)
+    end
+
+    function rules_mt.pop_mode()
+      rules = getmetatable(rules).up
+    end
+
+    local rules = setmetatable({}, rules_mt)
+    rules.push_mode('<global>')
 
 
 ------------------------------------------------------------------------------
 -- Metaparse functions.
 ------------------------------------------------------------------------------
 
-    -- By default, we parse the 'statement' rule.
+    -- By default, we parse the 'phrase' rule.
     function parse(str)
-      return parse_rule(str, 'statement')
+      return parse_rule(str, 'phrase')
     end
 
     function parse_rule(str, rule_name)
