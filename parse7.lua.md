@@ -82,8 +82,18 @@ It's not done yet.
     rules_mt.__index = rules_mt
 
     function rule_mt.push_mode(mode_name)
-      local meta = {__index = rules, up = rules}
-      rules = setmetatable(all_rules[mode_name], meta)
+      -- We can't alter the metatables of all_rules[mode_name] since a single
+      -- mode may end up on the stack at multiple levels.
+      local mode_rules = all_rules[mode_name]
+      local meta = {
+        __index = function (tbl, key)
+          local v = mode_rules[key]
+          if v ~= nil then return v end
+          return rules[key]
+        end,
+        up = rules
+      }
+      rules = setmetatable({}, meta)
     end
 
     function rules_mt.pop_mode()
