@@ -48,6 +48,8 @@ It's not done yet.
     -- The global mode has the key '<global>'.
     local all_rules = {}
 
+    -- Set up the global rules.
+
     all_rules['<global>'] =
       phrase = {kind = 'or', items = {'statement'}}
       statement = {kind = 'or', items = {'rules_start', 'rule'}},
@@ -73,6 +75,58 @@ It's not done yet.
     -- Add a 'name' key to each rule so that it can be passed around as a
     -- self-contained object.
     for name, rule in pairs(all_rules['<global>']) do rule.name = name end
+
+--[[
+
+I'm working on the way modes will be pushed from a rule.
+
+Intuitively, it makes sense that a rule can have two major methods: one is an
+way to execute the parsed rule, another is a way to evaluate the rule as an
+expression. I could theoretically combine these, but I think the overall
+simplicity is greater if I keep them separate.
+
+The result of an execution could be a parse tree. This way, an execution can be
+a place to hook the parsing process and perform customized work. An alternative
+design could be to pass in a writeable reference to the parse tree, so that it
+could be changed, but also so that it could be safely ignored. Which choice is
+better may emerge with more experience. For now I'll return the parse tree.
+
+The result of an evaluation is conceptually a value in the language. For
+example, the parsed string `3.141f` in C would have a value of type `float` and
+the numeric value closest to 3.141 that can be represented in the corresponding
+binary format. It's ultimately up to the language designer to choose exactly how
+to represent values at this level.
+
+I can also imagine having automated `src` and `prefix` methods that would act in
+such a way that the concatenation of `prefix + src` for all parse trees would
+give back exactly the original source code. The separation of `prefix` would
+make it easier to use `src` as a way to perform secondary actions without
+having to worry about preceding whitespace, which was a common case in project
+water.
+
+TODO: I decided now is a good time to start working with a Parser instance
+      called `P`. This will be a good complement to the Runner `R`, and will be
+      a convenient single parameter to pass into parse-aware functions.
+      In particular, this will give me a good single place to call something
+      like `push_mode` and `parse_till_mode_pop`.
+
+In the future I may consider renaming `P` and `R` to `parser` and `runner`, as
+those are more descriptive names. I can also imagine eventually getting a
+`T` or `tree` parameter, similar to that used in `parse5`.
+
+--]]
+
+    all_rules['<global>'].regex.run = [[
+      rules.push_mode('str')
+      -- TODO HERE somehow parse until the mode is popped and return that
+    ]]
+
+    -- TODO Ensure that our parser will run this run code as expected and use
+    --      the result to replace the effective parse tree.
+
+------------------------------------------------------------------------------
+-- Interface between the rules and the parser.
+------------------------------------------------------------------------------
 
     -- Set up the rules table that is capable of changing modes.
 
