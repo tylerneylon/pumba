@@ -124,6 +124,44 @@ those are more descriptive names. I can also imagine eventually getting a
     -- TODO Ensure that our parser will run this run code as expected and use
     --      the result to replace the effective parse tree.
 
+
+------------------------------------------------------------------------------
+-- The Parser class.
+------------------------------------------------------------------------------
+
+    local Parser = {all_rules = {}, rules = {}}
+
+    function Parser:new()
+      assert(self)
+      local parser = {}
+      self.__index = self
+      return setmetatable(parser, self)
+    end
+
+    function Parser:push_mode(mode_name)
+      assert(self and mode_name)
+      -- We can't alter the metatables of self.all_rules[mode_name] since a
+      -- single mode may end up on the stack at multiple levels.
+      local mode_rules = self.all_rules[mode_name]
+      local meta = {
+        __index = function (tbl, key)
+          local v = mode_rules[key]
+          if v ~= nil then return v end
+          return self.rules[key]
+        end,
+        up = self.rules
+      }
+      self.rules = setmetatable({}, meta)
+    end
+
+    function Parser:pop_mode()
+      assert(self)
+      self.rules = getmetatable(self.rules).up
+    end
+
+    -- TODO Add parsing functionality in the context of this Parser class.
+
+
 ------------------------------------------------------------------------------
 -- Interface between the rules and the parser.
 ------------------------------------------------------------------------------
@@ -289,6 +327,8 @@ those are more descriptive names. I can also imagine eventually getting a
       self.frame = getmetatable(self.frame).up
     end
 
+    -- This function is useful to allow explicit shadowing of a global with a
+    -- local of the same name.
     function Run:new_local(name, val)
       rawset(self.frame, name, val)
     end
