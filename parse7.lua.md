@@ -159,82 +159,41 @@ those are more descriptive names. I can also imagine eventually getting a
       self.rules = getmetatable(self.rules).up
     end
 
-    -- TODO Add parsing functionality in the context of this Parser class.
-
-
-------------------------------------------------------------------------------
--- Interface between the rules and the parser.
-------------------------------------------------------------------------------
-
-    -- Set up the rules table that is capable of changing modes.
-
-    local rules = {}
-
-    local rules_mt = {}
-    rules_mt.__index = rules_mt
-
-    function rule_mt.push_mode(mode_name)
-      -- We can't alter the metatables of all_rules[mode_name] since a single
-      -- mode may end up on the stack at multiple levels.
-      local mode_rules = all_rules[mode_name]
-      local meta = {
-        __index = function (tbl, key)
-          local v = mode_rules[key]
-          if v ~= nil then return v end
-          return rules[key]
-        end,
-        up = rules
-      }
-      rules = setmetatable({}, meta)
+    function Parser:parse(str)
+      return self:parse_rule(str, 'phrase')
     end
 
-    function rules_mt.pop_mode()
-      rules = getmetatable(rules).up
-    end
-
-    local rules = setmetatable({}, rules_mt)
-    rules.push_mode('<global>')
-
-
-------------------------------------------------------------------------------
--- Metaparse functions.
-------------------------------------------------------------------------------
-
-    -- By default, we parse the 'phrase' rule.
-    function parse(str)
-      return parse_rule(str, 'phrase')
-    end
-
-    function parse_rule(str, rule_name)
+    function Parser:parse_rule(str, rule_name)
       --print('parse_rule, rule_name = "' .. rule_name .. '"')
       if rule_name:sub(1, 1) == "'" then
         return parse_literal(str, rule_name:sub(2, #rule_name - 1))
       elseif rule_name:sub(1, 1) == '"' then
         return parse_regex(str, rule_name:sub(2, #rule_name - 1))
       elseif rule_name:sub(#rule_name, #rule_name) == '*' then
-        local rule = rules[rule_name:sub(1, #rule_name - 1)]
-        return parse_star_rule(str, rule)
+        local rule = self.rules[rule_name:sub(1, #rule_name - 1)]
+        return self:parse_star_rule(str, rule)
+        -- TODO Add a way to parse question rules.
       end
-      local rule = rules[rule_name]
 
+      -- Try to treat it as a basic rule name.
+      local rule = self.rules[rule_name]
       if rule == nil then
         print('Error in internal grammar! missing rule: ' .. rule_name)
         os.exit(1)
       end
-
       if rule.kind == 'or' then
-        return parse_or_rule(str, rule)
+        return self:parse_or_rule(str, rule)
       elseif rule.kind == 'seq' then
-        return parse_seq_rule(str, rule)
+        return self:parse_seq_rule(str, rule)
       else
         error('Unknown rule kind: ' .. tostring(rule.kind))
       end
     end
 
-    function parse_or_rule(str, rule)
+    function Parser:parse_or_rule(str, rule)
       local tree = {name = rule.name, kind = 'or', kids={}}
       for _, subrule in ipairs(rule.items) do
-        local subtree, tail = parse_rule(str, subrule)
+        local subtree, tail = self:parse_rule(str, subrule)
         if subtree ~= 'no match' then
           tree.kids[#tree.kids + 1] = subtree
           return tree, tail
@@ -243,11 +202,11 @@ those are more descriptive names. I can also imagine eventually getting a
       return 'no match', str
     end
 
-    function parse_seq_rule(str, rule)
+    function Parser:parse_seq_rule(str, rule)
       local tree = {name = rule.name, kind = 'seq', kids = {}}
       local subtree, tail = nil, str
       for _, subrule in ipairs(rule.items) do
-        subtree, tail = parse_rule(tail, subrule)
+        subtree, tail = self:parse_rule(tail, subrule)
         if subtree == 'no match' then return 'no match', str end
         tree.kids[#tree.kids + 1] = subtree
       end
@@ -255,16 +214,28 @@ those are more descriptive names. I can also imagine eventually getting a
       return tree, tail
     end
 
-    function parse_star_rule(str, rule)
+    function Parser:parse_star_rule(str, rule)
       local tree = {name = '*' .. rule.name, kind = 'star', kids = {}}
       local subtree, tail = nil, str
       while true do
-        subtree, tail = parse_rule(tail, rule.name)
+        subtree, tail = self:parse_rule(tail, rule.name)
         if subtree == 'no match' then break end
         tree.kids[#tree.kids + 1] = subtree
       end
       return tree, tail
     end
+
+    -- TODO NEXT Add a way to parse until a mode is popped.
+
+
+------------------------------------------------------------------------------
+-- Metaparse functions.
+------------------------------------------------------------------------------
+
+    -- These functions may live outside of any Parser instance as they depend
+    -- on nothing beyond the string and regex or literal handed to them. In
+    -- contrast, parse methods in Parser care about the current context of
+    -- named rules.
 
     function parse_literal(str, lit_str)
       --print('parse_literal(' .. str .. ', ' .. lit_str .. ')')
@@ -491,6 +462,7 @@ those are more descriptive names. I can also imagine eventually getting a
       print('')
     end
 
+
 ------------------------------------------------------------------------------
 -- Main.
 ------------------------------------------------------------------------------
@@ -507,11 +479,12 @@ those are more descriptive names. I can also imagine eventually getting a
     local src = f:read('*a')
     f:close()
     local R = Run:new()
+    local P = Parser:new()
 
     local statement_num = 1
     while not is_empty(src) do
 
-      local tree, tail = parse(src)
+      local tree, tail = P:parse(src)
 
       if tree == 'no match' then
         print('Parse failed at this point:')
