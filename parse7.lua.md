@@ -164,15 +164,15 @@ those are more descriptive names. I can also imagine eventually getting a
     end
 
     function Parser:parse_rule(str, rule_name)
+      local last_char = rule_name:sub(#rule_name, #rule_name)
       --print('parse_rule, rule_name = "' .. rule_name .. '"')
-      if rule_name:sub(1, 1) == "'" then
+      if last_char == "'" then
         return parse_literal(str, rule_name:sub(2, #rule_name - 1))
-      elseif rule_name:sub(1, 1) == '"' then
+      elseif last_char == '"' then
         return parse_regex(str, rule_name:sub(2, #rule_name - 1))
-      elseif rule_name:sub(#rule_name, #rule_name) == '*' then
+      elseif last_char == '*' or last_char == '?' then
         local rule = self.rules[rule_name:sub(1, #rule_name - 1)]
-        return self:parse_star_rule(str, rule)
-        -- TODO Add a way to parse question rules.
+        return self:parse_multi_rule(str, rule, last_char)
       end
 
       -- Try to treat it as a basic rule name.
@@ -214,13 +214,15 @@ those are more descriptive names. I can also imagine eventually getting a
       return tree, tail
     end
 
-    function Parser:parse_star_rule(str, rule)
-      local tree = {name = '*' .. rule.name, kind = 'star', kids = {}}
+    function Parser:parse_multi_rule(str, rule, last_char)
+      local tree_kind = (last_char == '*' and 'star' or 'question')
+      local tree = {name = last_char .. rule.name, kind = tree_kind, kids = {}}
       local subtree, tail = nil, str
       while true do
         subtree, tail = self:parse_rule(tail, rule.name)
         if subtree == 'no match' then break end
         tree.kids[#tree.kids + 1] = subtree
+        if last_char == '?' then break end  -- A ? rule takes at most one match.
       end
       return tree, tail
     end
