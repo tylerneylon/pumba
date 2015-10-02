@@ -15,6 +15,9 @@ It's not done yet.
 
 -- TODO Update these comments once this file is fully implemented.
 
+-- TODO NEXT Move down the rule initialization; add run code to pop into
+             str mode for regex's; add rules for str mode.
+
 --]]
 
 
@@ -227,7 +230,15 @@ those are more descriptive names. I can also imagine eventually getting a
       return tree, tail
     end
 
-    -- TODO NEXT Add a way to parse until a mode is popped.
+    function Parser:parse_mode_till_popped(str, mode)
+      local rules_when_done = self.rules
+      self:push_mode(mode)
+      local tree = {name = '<mode:' .. mode .. '>', kind = 'seq', kids = {}}
+      repeat
+        tree.kids[#tree.kids + 1], str = self:parse(str)
+      until self.rules == rules_when_done
+      return tree, str
+    end
 
 
 ------------------------------------------------------------------------------
