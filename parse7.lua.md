@@ -35,7 +35,7 @@ It's not done yet.
     local do_post_parse_dbg_print = false
 
 ------------------------------------------------------------------------------
--- Grammar data.
+-- Grammar data (to be replaced by a new version below).
 ------------------------------------------------------------------------------
 
     -- rules[rule_name] = rule_data.
@@ -240,6 +240,64 @@ those are more descriptive names. I can also imagine eventually getting a
       return tree, str
     end
 
+    local P = Parser:new()
+
+
+------------------------------------------------------------------------------
+-- Rules.
+------------------------------------------------------------------------------
+
+--[[
+
+Here is the grammar I plan to set up, with global rules given first:
+
+    phrase --> statement
+    statement --> rules_state | rule
+    rules_start -->
+      '>' "'\n'"
+    rule -->
+      rule_name '-->' rule_items
+    rule_items --> or_items | seq_items
+    or_items -->
+      basic_item or_and_item* "'\n'"
+    seq_items -->
+      "'\n'" item item* "'\n'"
+    basic_item --> literal | regex | rule_name
+    or_and_item -->
+      '|' basic_item
+    item --> star_item | question_item | basic_item
+    literal -->
+      "'[^']*'"
+    regex -->
+      '"' -str
+    rule_name -->
+      "[A-Za-z_][A-Za-z0-9_]*"
+    star_item -->
+      basic_item '*'
+    question_item -->
+      basic_item '?'
+
+In writing this out, I realized that the initial global rule set makes the most
+sense as something small. In particular, parsing of rules belongs in a mode, and
+by default, we won't be in that mode. As an example of why this makes sense, the
+current rule setup may see an isolated rule without an introductory `>` phrase,
+and still parse that rule. That's bad behavior. It also feels cleaner if the
+global rule set is extremely small to begin with.
+
+Eventually, it would be nice to allow till-newline comments in grammar specs.
+
+TODO Turn off whitespace prefixes in `str` mode.
+
+Below are the rules in the `str` mode. The `|:` token indicates to pop the mode
+if none of the previous or-rule items match.
+
+    phrase --> escaped_char | regular_char |:
+    escaped_char -->
+      '\\' "."
+    regular_char -->
+      "[^\"]"
+
+--]]
 
 ------------------------------------------------------------------------------
 -- Metaparse functions.
