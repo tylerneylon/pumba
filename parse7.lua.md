@@ -240,6 +240,13 @@ those are more descriptive names. I can also imagine eventually getting a
       return tree, str
     end
 
+    function Parser:add_rules_to_mode(mode, new_rules)
+      for rule_name, rule in pairs(new_rules) do
+        rule.name = rule_name
+        self.all_rules[mode].rule_name = rule
+      end
+    end
+
     local P = Parser:new()
 
 
@@ -252,7 +259,7 @@ those are more descriptive names. I can also imagine eventually getting a
 Here is the grammar I plan to set up, with global rules given first:
 
     phrase --> statement
-    statement --> rules_state | rule
+    statement --> rules_start | rule
     rules_start -->
       '>' "'\n'"
     rule -->
@@ -298,6 +305,13 @@ if none of the previous or-rule items match.
       "[^\"]"
 
 --]]
+
+    P.add_rules_to_mode('<global>', {
+      phrase      = { kind = 'or',  items = {'statement'} },
+      statement   = { kind = 'or',  items = {'rules_start', 'rule'} },
+      rules_start = { kind = 'seq', items = {"'>'", "'\n'"} }
+      -- TODO HERE continue transferring the just-above comment rules here
+    })
 
 ------------------------------------------------------------------------------
 -- Metaparse functions.
