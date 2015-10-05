@@ -307,11 +307,33 @@ if none of the previous or-rule items match.
 --]]
 
     P.add_rules_to_mode('<global>', {
-      phrase      = { kind = 'or',  items = {'statement'} },
-      statement   = { kind = 'or',  items = {'rules_start', 'rule'} },
-      rules_start = { kind = 'seq', items = {"'>'", "'\n'"} }
-      -- TODO HERE continue transferring the just-above comment rules here
+      phrase        = { kind = 'or',  items = {'statement'} },
+      statement     = { kind = 'or',  items = {'rules_start', 'rule'} },
+      rules_start   = { kind = 'seq', items = {"'>'", "'\n'"} },
+      or_items      = { kind = 'seq', items = {'basic_item',
+                                               'or_and_item*',
+                                               "'\n'"} },
+      seq_items     = { kind = 'seq', items = {"'\n'",
+                                               'item',
+                                               'item*',
+                                               "'\n'"} },
+      basic_item    = { kind = 'or',  items = {'literal',
+                                               'regex',
+                                               'rule_name'} },
+      or_and_item   = { kind = 'seq', items = {"'|'", 'basic_item'} },
+      item          = { kind = 'or',  items = {'star_item',
+                                               'question_item',
+                                               'basic_item'} },
+      literal       = { kind = 'seq', items = {[["'[^']*'"]]} },
+      regex         = { kind = 'seq', items = {[['"']], '-str'} },
+      rule_name     = { kind = 'seq', items = {[["[A-Za-z_][A-Za-z0-9_]*"]]} },
+      star_item     = { kind = 'seq', items = {'basic_item', "'*'"} },
+      question_item = { kind = 'seq', items = {'basic_item', "'?'"} }
     })
+
+    -- TODO NEXT Figure out how to indicate no whitespace prefix in certain
+    --           places in the grammar. For example, in {star,qusetion}_item, as
+    --           well as in the str mode.
 
 ------------------------------------------------------------------------------
 -- Metaparse functions.
