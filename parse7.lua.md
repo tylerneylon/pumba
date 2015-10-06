@@ -7,11 +7,16 @@
 
 Usage:
 
-    ./parse7.lua.md 02.input
+    ./parse7.lua.md 03.input
 
 This file is a step toward adding modes to grammars and parsing.
 
 It's not done yet.
+
+After this file is able to parse `03.input` more cleanly than previous
+parsers, I plan to expand it in `parse8` which can parse `04.input`.
+I may also aim to get `parse8` to be able to parse its own grammar,
+although that goal is not yet set in stone.
 
 -- TODO Update these comments once this file is fully implemented.
 
@@ -131,6 +136,41 @@ those are more descriptive names. I can also imagine eventually getting a
 ------------------------------------------------------------------------------
 -- The Parser class.
 ------------------------------------------------------------------------------
+
+--[[
+
+*TODO Clean up these preliminary notes on the `Parser` class.*
+
+### Future functionality
+
+One thing I'd like to be able to handle is an easy-to-notate and perhaps
+intrarule change in whitespace handling. For example, in the list of items
+that make up a seq-rule, we may have star items. A star item is a rule name
+immediately followed by a `'?'` token, without any whitespace between the
+two. There's currently no way to specify this lack of whitespace.
+
+I don't think the bottom level is the best place to code this ability.
+Instead, I'd like to try to make the bottom level enable this feature, and
+require a higher layer to make this feature easy to use. In particular,
+I can add a hook to allow a rule to modify the parser state. Ideally, the
+hook would implicitly save the parser state and restore it once the rule
+was done being parsed, whether it was successful or not. This could use
+the same lightweight mechanism as is used for pushing or popping modes.
+This design has the advantage of being easy to use correctly and difficult
+to use incorrectly. In particular, I'd like to avoid allowing direct
+access to the push/pop functionality that works behind the scenes.
+I imagine this function may either be unnamed, in which case the syntax
+would be minimal, or it may be named something like
+`preparse`, which is still short, yet conveys a clear sense of when it
+is rule. It excludes language about saving and loading of parsing state,
+since it may be used independently of that functionality.
+
+A design alternative would be to enable a one-off item name, such as `.`,
+that would turn off whitespace between the two enclosing tokens. This
+feels like a good interface, although I can imagine it being implemented
+using the above low-level functionality.
+
+--]]
 
     local Parser = {all_rules = {}, rules = {}}
 
@@ -331,9 +371,19 @@ if none of the previous or-rule items match.
       question_item = { kind = 'seq', items = {'basic_item', "'?'"} }
     })
 
+    P.add_rules_to_mode('str', {
+      phrase       = { kind = 'or',  items = {'escaped_char',
+                                              'regular_char',
+                                              '<pop>'} },
+      escaped_char = { kind = 'seq', items = {'\\', [["."]]} },
+      regular_char = { kind = 'seq', items = {[["[^"]"]]}
+    })
+
     -- TODO NEXT Figure out how to indicate no whitespace prefix in certain
     --           places in the grammar. For example, in {star,qusetion}_item, as
     --           well as in the str mode.
+
+    -- TODO Ensure this parser knows how to handle mode items such as '-str'.
 
 ------------------------------------------------------------------------------
 -- Metaparse functions.
@@ -376,7 +426,8 @@ if none of the previous or-rule items match.
 ------------------------------------------------------------------------------
 
     -- This sets the given key-value pair at the closest level where the key
-    -- exists; if it is new key at all levels, it's created at the current level.
+    -- exists; if it is new key at all levels, it's created at the current
+    -- level.
     function frame_set(frame, key, val)
       if frame[key] == nil or rawget(frame, key) ~= nil then
         rawset(frame, key, val)
@@ -397,7 +448,9 @@ if none of the previous or-rule items match.
     end
 
     function Run:push_scope()
-      local meta = {__index = self.frame, up = self.frame, __newindex = frame_set}
+      local meta = {__index = self.frame,
+                    up = self.frame,
+                    __newindex = frame_set}
       self.frame = setmetatable({}, meta)
     end
 
