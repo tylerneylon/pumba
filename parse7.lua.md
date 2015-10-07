@@ -39,99 +39,6 @@ although that goal is not yet set in stone.
     -- This turns on or off printing debug info about parsing.
     local do_post_parse_dbg_print = false
 
-------------------------------------------------------------------------------
--- Grammar data (to be replaced by a new version below).
-------------------------------------------------------------------------------
-
-    -- rules[rule_name] = rule_data.
-    -- A rule has at least the keys {kind, items}, where kind is either 'or' or
-    -- 'seq', and the items are either rule names, a 'literal', or a "regex".
-
-    -- Later, runnable rules also receive `run` keys. A run key is required for
-    -- `seq` rules but is optional for `or` rules.
-
-    -- TODO Be able to parse modes.
-
-    -- all_rules[<mode>] = {<rule_name> = {kind, items, name}}
-    -- The global mode has the key '<global>'.
-    local all_rules = {}
-
-    -- Set up the global rules.
-
-    all_rules['<global>'] =
-      phrase = {kind = 'or', items = {'statement'}}
-      statement = {kind = 'or', items = {'rules_start', 'rule'}},
-      rules_start = {kind = 'seq', items = {[['>']], "'\n'"}},
-      rule = {kind = 'seq', items = {'rule_name', "'-->'",
-                                         'rule_items', "'\n'"}},
-      rule_items = {kind = 'or', items = {'or_items', 'seq_items'}
-      or_items = {kind = 'seq', items = {'basic_item', 'or_and_item*', "'\n'"}}
-      seq_items = {kind = 'seq', items = {"'\n'", 'item', 'item*', "'\n'"}}
-      basic_item = {kind = 'or', items = {'literal', 'regex', 'rule_name'}},
-      or_and_item = {kind = 'seq', items = {"'|'", 'basic_item'}},
-      item = {kind = 'or', items = {'star_item',
-                                    'question_item',
-                                    'basic_item'}},
-      literal = {kind = 'seq', items = {[["'[^']*'"]]}},
-      -- Future: Fix regular expression parsing in a future parseX script.
-      regex = {kind = 'seq', items = {[[""[^ ]*" "]]}},
-      rule_name = {kind = 'seq', items = {[["[A-Za-z_][A-Za-z0-9_]*"]]}},
-      star_item = {kind = 'seq', items = {'basic_item', [['*']]}},
-      question_item = {kind = 'seq', items = {'basic_item', [['?']]}}
-    }
-
-    -- Add a 'name' key to each rule so that it can be passed around as a
-    -- self-contained object.
-    for name, rule in pairs(all_rules['<global>']) do rule.name = name end
-
---[[
-
-I'm working on the way modes will be pushed from a rule.
-
-Intuitively, it makes sense that a rule can have two major methods: one is an
-way to execute the parsed rule, another is a way to evaluate the rule as an
-expression. I could theoretically combine these, but I think the overall
-simplicity is greater if I keep them separate.
-
-The result of an execution could be a parse tree. This way, an execution can be
-a place to hook the parsing process and perform customized work. An alternative
-design could be to pass in a writeable reference to the parse tree, so that it
-could be changed, but also so that it could be safely ignored. Which choice is
-better may emerge with more experience. For now I'll return the parse tree.
-
-The result of an evaluation is conceptually a value in the language. For
-example, the parsed string `3.141f` in C would have a value of type `float` and
-the numeric value closest to 3.141 that can be represented in the corresponding
-binary format. It's ultimately up to the language designer to choose exactly how
-to represent values at this level.
-
-I can also imagine having automated `src` and `prefix` methods that would act in
-such a way that the concatenation of `prefix + src` for all parse trees would
-give back exactly the original source code. The separation of `prefix` would
-make it easier to use `src` as a way to perform secondary actions without
-having to worry about preceding whitespace, which was a common case in project
-water.
-
-TODO: I decided now is a good time to start working with a Parser instance
-      called `P`. This will be a good complement to the Runner `R`, and will be
-      a convenient single parameter to pass into parse-aware functions.
-      In particular, this will give me a good single place to call something
-      like `push_mode` and `parse_till_mode_pop`.
-
-In the future I may consider renaming `P` and `R` to `parser` and `runner`, as
-those are more descriptive names. I can also imagine eventually getting a
-`T` or `tree` parameter, similar to that used in `parse5`.
-
---]]
-
-    all_rules['<global>'].regex.run = [[
-      rules.push_mode('str')
-      -- TODO HERE somehow parse until the mode is popped and return that
-    ]]
-
-    -- TODO Ensure that our parser will run this run code as expected and use
-    --      the result to replace the effective parse tree.
-
 
 ------------------------------------------------------------------------------
 -- The Parser class.
@@ -169,6 +76,49 @@ A design alternative would be to enable a one-off item name, such as `.`,
 that would turn off whitespace between the two enclosing tokens. This
 feels like a good interface, although I can imagine it being implemented
 using the above low-level functionality.
+
+### How modes can be pushed
+
+**TODO** Clean up this bit.
+
+I'm working on the way modes will be pushed from a rule.
+
+Intuitively, it makes sense that a rule can have two major methods: one is an
+way to execute the parsed rule, another is a way to evaluate the rule as an
+expression. I could theoretically combine these, but I think the overall
+simplicity is greater if I keep them separate.
+
+The result of an execution could be a parse tree. This way, an execution can be
+a place to hook the parsing process and perform customized work. An alternative
+design could be to pass in a writeable reference to the parse tree, so that it
+could be changed, but also so that it could be safely ignored. Which choice is
+better may emerge with more experience. For now I'll return the parse tree.
+
+The result of an evaluation is conceptually a value in the language. For
+example, the parsed string `3.141f` in C would have a value of type `float` and
+the numeric value closest to 3.141 that can be represented in the corresponding
+binary format. It's ultimately up to the language designer to choose exactly how
+to represent values at this level.
+
+I can also imagine having automated `src` and `prefix` methods that would act in
+such a way that the concatenation of `prefix + src` for all parse trees would
+give back exactly the original source code. The separation of `prefix` would
+make it easier to use `src` as a way to perform secondary actions without
+having to worry about preceding whitespace, which was a common case in project
+water.
+
+TODO: I decided now is a good time to start working with a Parser instance
+      called `P`. This will be a good complement to the Runner `R`, and will be
+      a convenient single parameter to pass into parse-aware functions.
+      In particular, this will give me a good single place to call something
+      like `push_mode` and `parse_till_mode_pop`.
+
+In the future I may consider renaming `P` and `R` to `parser` and `runner`, as
+those are more descriptive names. I can also imagine eventually getting a
+`T` or `tree` parameter, similar to that used in `parse5`.
+
+
+### The `Parser` class
 
 --]]
 
@@ -296,6 +246,8 @@ using the above low-level functionality.
 
 --[[
 
+### The global grammar
+
 Here is the grammar I plan to set up, with global rules given first:
 
     phrase --> statement
@@ -324,6 +276,8 @@ Here is the grammar I plan to set up, with global rules given first:
     question_item -->
       basic_item '?'
 
+### Plan for future global grammar
+
 In writing this out, I realized that the initial global rule set makes the most
 sense as something small. In particular, parsing of rules belongs in a mode, and
 by default, we won't be in that mode. As an example of why this makes sense, the
@@ -332,6 +286,8 @@ and still parse that rule. That's bad behavior. It also feels cleaner if the
 global rule set is extremely small to begin with.
 
 Eventually, it would be nice to allow till-newline comments in grammar specs.
+
+### The `str` mode grammar for strings
 
 TODO Turn off whitespace prefixes in `str` mode.
 
@@ -346,7 +302,7 @@ if none of the previous or-rule items match.
 
 --]]
 
-    P.add_rules_to_mode('<global>', {
+    P:add_rules_to_mode('<global>', {
       phrase        = { kind = 'or',  items = {'statement'} },
       statement     = { kind = 'or',  items = {'rules_start', 'rule'} },
       rules_start   = { kind = 'seq', items = {"'>'", "'\n'"} },
@@ -371,12 +327,12 @@ if none of the previous or-rule items match.
       question_item = { kind = 'seq', items = {'basic_item', "'?'"} }
     })
 
-    P.add_rules_to_mode('str', {
+    P:add_rules_to_mode('str', {
       phrase       = { kind = 'or',  items = {'escaped_char',
                                               'regular_char',
                                               '<pop>'} },
       escaped_char = { kind = 'seq', items = {'\\', [["."]]} },
-      regular_char = { kind = 'seq', items = {[["[^"]"]]}
+      regular_char = { kind = 'seq', items = {[["[^"]"]]} }
     })
 
     -- TODO NEXT Figure out how to indicate no whitespace prefix in certain

@@ -18,9 +18,8 @@
     "\"" -str
 
 > str
-  phrase --> escape_seq | char
+  phrase --> escape_seq | char |:
   escape_seq -->
     "\\\\(.)"
   char -->
-    "."
-    : if self:code() == '"' then mode:pop() end
+    "[^\"]"
