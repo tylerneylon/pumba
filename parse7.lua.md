@@ -7,16 +7,14 @@
 
 Usage:
 
-    ./parse7.lua.md 03.input
+    ./parse7.lua.md 04.input
 
 This file is a step toward adding modes to grammars and parsing.
 
 It's not done yet.
 
-After this file is able to parse `03.input` more cleanly than previous
-parsers, I plan to expand it in `parse8` which can parse `04.input`.
-I may also aim to get `parse8` to be able to parse its own grammar,
-although that goal is not yet set in stone.
+After this file is able to parse `04.input` more cleanly than previous
+parsers, I plan to expand it in `parse8` which can parse it's own grammar.
 
 -- TODO Update these comments once this file is fully implemented.
 
@@ -132,22 +130,28 @@ those are more descriptive names. I can also imagine eventually getting a
     end
 
     function Parser:push_mode(mode_name)
+      -- print('Parse mode ' .. mode_name .. ' pushed onto stack')
       assert(self and mode_name)
       -- We can't alter the metatables of self.all_rules[mode_name] since a
       -- single mode may end up on the stack at multiple levels.
       local mode_rules = self.all_rules[mode_name]
+      local up_rules = self.rules
+
       local meta = {
         __index = function (tbl, key)
+          -- print('lookup on self.rules (tbl=' .. tostring(tbl) ..
+          --       ') with key ' .. key)
           local v = mode_rules[key]
           if v ~= nil then return v end
-          return self.rules[key]
+          return up_rules[key]
         end,
-        up = self.rules
+        up = up_rules
       }
       self.rules = setmetatable({}, meta)
     end
 
     function Parser:pop_mode()
+      -- print('popping a mode from the parse mode stack!')
       assert(self)
       self.rules = getmetatable(self.rules).up
     end
@@ -158,7 +162,7 @@ those are more descriptive names. I can also imagine eventually getting a
 
     function Parser:parse_rule(str, rule_name)
       local last_char = rule_name:sub(#rule_name, #rule_name)
-      --print('parse_rule, rule_name = "' .. rule_name .. '"')
+      -- print('parse_rule, rule_name = "' .. rule_name .. '"')
       if last_char == "'" then
         return parse_literal(str, rule_name:sub(2, #rule_name - 1))
       elseif last_char == '"' then
@@ -169,8 +173,15 @@ those are more descriptive names. I can also imagine eventually getting a
       end
 
       -- Try to treat it as a basic rule name.
+
+      -- TODO Add a way to inspect the mode name at each mode level in the rules
+      --      stack.
+
       local rule = self.rules[rule_name]
       if rule == nil then
+        -- TODO It would be useful to print out more info here. At least the
+        --      current mode stack. Possibly also a stack of how we got here in
+        --      the grammar tree.
         print('Error in internal grammar! missing rule: ' .. rule_name)
         os.exit(1)
       end
@@ -231,9 +242,12 @@ those are more descriptive names. I can also imagine eventually getting a
     end
 
     function Parser:add_rules_to_mode(mode, new_rules)
+      -- Ensure the mode exists.
+      if self.all_rules[mode] == nil then self.all_rules[mode] = {} end
+      -- Add each rule, ensuring the name field is consistent for each one.
       for rule_name, rule in pairs(new_rules) do
         rule.name = rule_name
-        self.all_rules[mode].rule_name = rule
+        self.all_rules[mode][rule_name] = rule
       end
     end
 
@@ -340,6 +354,9 @@ if none of the previous or-rule items match.
     --           well as in the str mode.
 
     -- TODO Ensure this parser knows how to handle mode items such as '-str'.
+
+    P:push_mode('<global>')
+
 
 ------------------------------------------------------------------------------
 -- Metaparse functions.
@@ -595,7 +612,6 @@ if none of the previous or-rule items match.
     local src = f:read('*a')
     f:close()
     local R = Run:new()
-    local P = Parser:new()
 
     local statement_num = 1
     while not is_empty(src) do
