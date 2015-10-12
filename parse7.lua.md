@@ -171,6 +171,10 @@ those are more descriptive names. I can also imagine eventually getting a
         local rule = self.rules[rule_name:sub(1, #rule_name - 1)]
         return self:parse_multi_rule(str, rule, last_char)
       end
+      if rule_name:sub(1, 1) == '-' then
+        local mode = rule_name:sub(2)
+        return self:parse_mode_till_popped(str, mode)
+      end
 
       -- Try to treat it as a basic rule name.
 
