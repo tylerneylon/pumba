@@ -109,7 +109,7 @@ TODO: I decided now is a good time to start working with a Parser instance
       called `P`. This will be a good complement to the Runner `R`, and will be
       a convenient single parameter to pass into parse-aware functions.
       In particular, this will give me a good single place to call something
-      like `push_mode` and `parse_till_mode_pop`.
+      like `push_mode` and `parse_mode_till_popped`.
 
 In the future I may consider renaming `P` and `R` to `parser` and `runner`, as
 those are more descriptive names. I can also imagine eventually getting a
@@ -162,7 +162,9 @@ those are more descriptive names. I can also imagine eventually getting a
 
     function Parser:parse_rule(str, rule_name)
       local last_char = rule_name:sub(#rule_name, #rule_name)
-      -- print('parse_rule, rule_name = "' .. rule_name .. '"')
+      -- io.write('parse_rule, rule_name = "' .. rule_name .. '" ')
+      -- local str_start = string.format('%q', str:sub(1, 10)):gsub('\n', 'n')
+      -- print(string.format('str begins %s', str_start))
       if last_char == "'" then
         return parse_literal(str, rule_name:sub(2, #rule_name - 1))
       elseif last_char == '"' then
@@ -170,10 +172,12 @@ those are more descriptive names. I can also imagine eventually getting a
       elseif last_char == '*' or last_char == '?' then
         local rule = self.rules[rule_name:sub(1, #rule_name - 1)]
         return self:parse_multi_rule(str, rule, last_char)
-      end
-      if rule_name:sub(1, 1) == '-' then
+      elseif rule_name:sub(1, 1) == '-' then
         local mode = rule_name:sub(2)
         return self:parse_mode_till_popped(str, mode)
+      elseif rule_name == '<pop>' then
+        self:pop_mode()
+        return 'mode popped', str
       end
 
       -- Try to treat it as a basic rule name.
@@ -216,7 +220,9 @@ those are more descriptive names. I can also imagine eventually getting a
       for _, subrule in ipairs(rule.items) do
         subtree, tail = self:parse_rule(tail, subrule)
         if subtree == 'no match' then return 'no match', str end
-        tree.kids[#tree.kids + 1] = subtree
+        if subtree ~= 'mode popped' then
+          tree.kids[#tree.kids + 1] = subtree
+        end
       end
       if #tree.kids == 1 then tree.value = tree.kids[1].value end
       return tree, tail
@@ -312,11 +318,13 @@ TODO Turn off whitespace prefixes in `str` mode.
 Below are the rules in the `str` mode. The `|:` token indicates to pop the mode
 if none of the previous or-rule items match.
 
-    phrase --> escaped_char | regular_char |:
+    phrase --> escaped_char | regular_char | end_char
     escaped_char -->
       '\\' "."
     regular_char -->
       "[^\"]"
+    end_char -->
+      '"' <pop>
 
 --]]
 
@@ -352,9 +360,10 @@ if none of the previous or-rule items match.
     P:add_rules_to_mode('str', {
       phrase       = { kind = 'or',  items = {'escaped_char',
                                               'regular_char',
-                                              '<pop>'} },
-      escaped_char = { kind = 'seq', items = {'\\', [["."]]} },
-      regular_char = { kind = 'seq', items = {[["[^"]"]]} }
+                                              'end_char'} },
+      escaped_char = { kind = 'seq', items = {"'\\'", [["."]]} },
+      regular_char = { kind = 'seq', items = {[["[^"]"]]} },
+      end_char     = { kind = 'seq', items = {[['"']], '<pop>'} }
     })
 
     -- TODO NEXT Figure out how to indicate no whitespace prefix in certain
