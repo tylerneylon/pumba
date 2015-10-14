@@ -272,12 +272,17 @@ those are more descriptive names. I can also imagine eventually getting a
 
 ### The global grammar
 
-Here is the grammar I plan to set up, with global rules given first:
+Below is the grammar I plan to set up, with global rules given first.
+In the `mode_item` rule, I use the item `rule_name`, although, semantically,
+that item is actually a mode name.
 
     phrase --> statement
     statement --> rules_start | rule
-    rules_start -->
+    rules_start --> global_start | mode_start
+    global_start -->
       '>' "'\n'"
+    mode_start -->
+      '>' rule_name "'\n'"
     rule -->
       rule_name '-->' rule_items
     rule_items --> or_items | seq_items
@@ -288,13 +293,15 @@ Here is the grammar I plan to set up, with global rules given first:
     basic_item --> literal | regex | rule_name
     or_and_item -->
       '|' basic_item
-    item --> star_item | question_item | basic_item
+    item --> mode_item | star_item | question_item | basic_item
     literal -->
       "'[^']*'"
     regex -->
       '"' -str
     rule_name -->
       "[A-Za-z_][A-Za-z0-9_]*"
+    mode_item -->
+      '-' rule_name
     star_item -->
       basic_item '*'
     question_item -->
@@ -331,7 +338,9 @@ if none of the previous or-rule items match.
     P:add_rules_to_mode('<global>', {
       phrase        = { kind = 'or',  items = {'statement'} },
       statement     = { kind = 'or',  items = {'rules_start', 'rule'} },
-      rules_start   = { kind = 'seq', items = {"'>'", "'\n'"} },
+      rules_start   = { kind = 'or',  items = {'global_start', 'mode_start'} },
+      global_start  = { kind = 'seq', items = {"'>'", "'\n'"} },
+      mode_start    = { kind = 'seq', items = {"'>'", 'rule_name', "'\n'"} },
       rule          = { kind = 'seq', items = {'rule_name',
                                                "'-->'",
                                                'rule_items'} },
@@ -347,12 +356,14 @@ if none of the previous or-rule items match.
                                                'regex',
                                                'rule_name'} },
       or_and_item   = { kind = 'seq', items = {"'|'", 'basic_item'} },
-      item          = { kind = 'or',  items = {'star_item',
+      item          = { kind = 'or',  items = {'mode_item',
+                                               'star_item',
                                                'question_item',
                                                'basic_item'} },
       literal       = { kind = 'seq', items = {[["'[^']*'"]]} },
       regex         = { kind = 'seq', items = {[['"']], '-str'} },
       rule_name     = { kind = 'seq', items = {[["[A-Za-z_][A-Za-z0-9_]*"]]} },
+      mode_item     = { kind = 'seq', items = {"'-'", 'rule_name'} },
       star_item     = { kind = 'seq', items = {'basic_item', "'*'"} },
       question_item = { kind = 'seq', items = {'basic_item', "'?'"} }
     })
