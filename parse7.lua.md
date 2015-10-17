@@ -37,6 +37,10 @@ parsers, I plan to expand it in `parse8` which can parse it's own grammar.
     -- This turns on or off printing debug info about parsing.
     local do_post_parse_dbg_print = false
 
+    -- These are experimental prints to help with debugging. I hope to iterate
+    -- on these statements to maximize their usefulness.
+    local do_print_extras = false
+
 
 ------------------------------------------------------------------------------
 -- The Parser class.
@@ -130,7 +134,9 @@ those are more descriptive names. I can also imagine eventually getting a
     end
 
     function Parser:push_mode(mode_name)
-      -- print('Parse mode ' .. mode_name .. ' pushed onto stack')
+      if do_print_extras then
+        print('Parse mode ' .. mode_name .. ' pushed onto stack')
+      end
       assert(self and mode_name)
       -- We can't alter the metatables of self.all_rules[mode_name] since a
       -- single mode may end up on the stack at multiple levels.
@@ -151,7 +157,9 @@ those are more descriptive names. I can also imagine eventually getting a
     end
 
     function Parser:pop_mode()
-      -- print('popping a mode from the parse mode stack!')
+      if do_print_extras then
+        print('popping a mode from the parse mode stack!')
+      end
       assert(self)
       self.rules = getmetatable(self.rules).up
     end
@@ -162,9 +170,11 @@ those are more descriptive names. I can also imagine eventually getting a
 
     function Parser:parse_rule(str, rule_name)
       local last_char = rule_name:sub(#rule_name, #rule_name)
-      -- io.write('parse_rule, rule_name = "' .. rule_name .. '" ')
-      -- local str_start = string.format('%q', str:sub(1, 10)):gsub('\n', 'n')
-      -- print(string.format('str begins %s', str_start))
+      if do_print_extras then
+        io.write('parse_rule, rule_name = "' .. rule_name .. '" ')
+        local str_start = string.format('%q', str:sub(1, 10)):gsub('\n', 'n')
+        print(string.format('str begins %s', str_start))
+      end
       if last_char == "'" then
         return parse_literal(str, rule_name:sub(2, #rule_name - 1))
       elseif last_char == '"' then
@@ -293,7 +303,7 @@ that item is actually a mode name.
     basic_item --> literal | regex | rule_name
     or_and_item -->
       '|' basic_item
-    item --> mode_item | star_item | question_item | basic_item
+    item --> '<pop>' | mode_item | star_item | question_item | basic_item
     literal -->
       "'[^']*'"
     regex -->
@@ -356,7 +366,8 @@ if none of the previous or-rule items match.
                                                'regex',
                                                'rule_name'} },
       or_and_item   = { kind = 'seq', items = {"'|'", 'basic_item'} },
-      item          = { kind = 'or',  items = {'mode_item',
+      item          = { kind = 'or',  items = {"'<pop>'",
+                                               'mode_item',
                                                'star_item',
                                                'question_item',
                                                'basic_item'} },

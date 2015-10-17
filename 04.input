@@ -18,8 +18,10 @@
     "\"" -str
 
 > str
-  phrase --> escape_seq | char |:
-  escape_seq -->
-    "\\\\(.)"
-  char -->
+  phrase --> escaped_char | regular_char | end_char
+  escaped_char -->
+    '\\' "."
+  regular_char -->
     "[^\"]"
+  end_char -->
+    '"' <pop>
