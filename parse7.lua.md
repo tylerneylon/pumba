@@ -35,7 +35,7 @@ parsers, I plan to expand it in `parse8` which can parse it's own grammar.
     local do_mid_parse_dbg_print = false
 
     -- This turns on or off printing debug info about parsing.
-    local do_post_parse_dbg_print = false
+    local do_post_parse_dbg_print = true
 
     -- These are experimental prints to help with debugging. I hope to iterate
     -- on these statements to maximize their usefulness.
@@ -286,20 +286,22 @@ Below is the grammar I plan to set up, with global rules given first.
 In the `mode_item` rule, I use the item `rule_name`, although, semantically,
 that item is actually a mode name.
 
-    phrase --> statement
+    phrase --> statement | empty_line
+    empty_line -->
+      '\n'
     statement --> rules_start | rule
     rules_start --> global_start | mode_start
     global_start -->
-      '>' "'\n'"
+      '>' '\n'
     mode_start -->
-      '>' rule_name "'\n'"
+      '>' rule_name '\n'
     rule -->
       rule_name '-->' rule_items
     rule_items --> or_items | seq_items
     or_items -->
-      basic_item or_and_item* "'\n'"
+      basic_item or_and_item* '\n'
     seq_items -->
-      "'\n'" item item* "'\n'"
+      '\n' item item* '\n'
     basic_item --> literal | regex | rule_name
     or_and_item -->
       '|' basic_item
@@ -346,7 +348,8 @@ if none of the previous or-rule items match.
 --]]
 
     P:add_rules_to_mode('<global>', {
-      phrase        = { kind = 'or',  items = {'statement'} },
+      phrase        = { kind = 'or',  items = {'statement', 'empty_line'} },
+      empty_line    = { kind = 'seq', items = {"'\n'"} },
       statement     = { kind = 'or',  items = {'rules_start', 'rule'} },
       rules_start   = { kind = 'or',  items = {'global_start', 'mode_start'} },
       global_start  = { kind = 'seq', items = {"'>'", "'\n'"} },
