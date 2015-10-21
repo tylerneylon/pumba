@@ -1,25 +1,37 @@
-#!/usr/local/bin/lua
 --[[
 
 # parse7.lua.md
+
+--]]
+
+
+------------------------------------------------------------------------------
+-- Introduction.
+------------------------------------------------------------------------------
+
+--[[
 
 *This file is designed to be read after being processed as markdown.*
 
 Usage:
 
-    ./parse7.lua.md 04.input
+    lua parse7.lua.md 04.input
 
-This file is a step toward adding modes to grammars and parsing.
+This file adds *modes* to grammars and parsing.
+Different parsing modes can parse different grammars. I envision this as a nice
+way to support a parser that can fluidly switch between languages. It has also
+been useful in switching from an essentially token-based parsing environment to
+a string or multiline string environment and back.
 
-It's not done yet.
+This script uses parse modes internally,
+and is able to parse a grammar that includes different parse modes.
+It does not run anything; it only parses.
 
-After this file is able to parse `04.input` more cleanly than previous
-parsers, I plan to expand it in `parse8` which can parse it's own grammar.
-
--- TODO Update these comments once this file is fully implemented.
-
--- TODO NEXT Move down the rule initialization; add run code to pop into
-             str mode for regex's; add rules for str mode.
+The biggest change from `parse6` to this script is the addition of the `Parser`
+class, which acts as a central place to store changing parser data and to
+promote consistency of this data. Previous parsing scripts only included a
+`rules` table, but now the `Parser` instance also includes an `all_rules` table
+which is indexed by the parse mode.
 
 --]]
 
@@ -27,6 +39,16 @@ parsers, I plan to expand it in `parse8` which can parse it's own grammar.
 ------------------------------------------------------------------------------
 -- Settings.
 ------------------------------------------------------------------------------
+
+--[[
+
+These global settings make debugging easier. I personally use these while
+debugging the scripts themselves, although I can imagine their usefulness
+extending into the production use of pumba by others developing new grammars.
+I hope to further improve the print format used by each value so the user sees
+exactly the useful pieces of data in a small but visually pleasant layout.
+
+--]]
 
     -- This turns on or off printing from within the run framework.
     local do_run_dbg_print = false
@@ -45,6 +67,12 @@ parsers, I plan to expand it in `parse8` which can parse it's own grammar.
 ------------------------------------------------------------------------------
 -- The Parser class.
 ------------------------------------------------------------------------------
+
+--[[
+
+(This is a good place to introduce the `Parser` class.)
+
+--]]
 
 --[[
 
@@ -678,3 +706,19 @@ if none of the previous or-rule items match.
       src = tail
 
     end
+
+
+------------------------------------------------------------------------------
+-- Future work.
+------------------------------------------------------------------------------
+
+--[[
+
+### The next parse script
+
+I'd like the next parse script to be able to parse its own grammar.
+Optionally, I'd like to be able to toggle whitespace prefixing on and off.
+
+### Thoughts on future scripts
+
+--]]
