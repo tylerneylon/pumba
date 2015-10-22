@@ -65,94 +65,59 @@ exactly the useful pieces of data in a small but visually pleasant layout.
 
 
 ------------------------------------------------------------------------------
--- The Parser class.
+-- The `Parser` class.
 ------------------------------------------------------------------------------
 
 --[[
 
-(This is a good place to introduce the `Parser` class.)
+Now we're ready to define the `Parser` class.
 
---]]
+I expect there to only be a single instance, so an alternative design would be
+to expose the same interface as a set of functions that may access the
+same set of global variables instead of methods accessing instance variables.
+I prefer the class interface for a couple reasons:
 
---[[
+* It's cleaner to keep the scope of our grammar data as small as possible. We
+  could pass the grammar around as a parameter to functions, but it feels more
+  natural to me for the grammar to be held in instance variables of a class.
+* Grammar-writers will have access to both the runtime system, currently
+  called `R`, and the parsing api. I think the overall interface will produce
+  more readable code if the entire api is made of method calls rather than a mix
+  of functions and methods. It feels more consistent and organized.
 
-*TODO Clean up these preliminary notes on the `Parser` class.*
-
-### Future functionality
-
-One thing I'd like to be able to handle is an easy-to-notate and perhaps
-intrarule change in whitespace handling. For example, in the list of items
-that make up a seq-rule, we may have star items. A star item is a rule name
-immediately followed by a `'?'` token, without any whitespace between the
-two. There's currently no way to specify this lack of whitespace.
-
-I don't think the bottom level is the best place to code this ability.
-Instead, I'd like to try to make the bottom level enable this feature, and
-require a higher layer to make this feature easy to use. In particular,
-I can add a hook to allow a rule to modify the parser state. Ideally, the
-hook would implicitly save the parser state and restore it once the rule
-was done being parsed, whether it was successful or not. This could use
-the same lightweight mechanism as is used for pushing or popping modes.
-This design has the advantage of being easy to use correctly and difficult
-to use incorrectly. In particular, I'd like to avoid allowing direct
-access to the push/pop functionality that works behind the scenes.
-I imagine this function may either be unnamed, in which case the syntax
-would be minimal, or it may be named something like
-`preparse`, which is still short, yet conveys a clear sense of when it
-is rule. It excludes language about saving and loading of parsing state,
-since it may be used independently of that functionality.
-
-A design alternative would be to enable a one-off item name, such as `.`,
-that would turn off whitespace between the two enclosing tokens. This
-feels like a good interface, although I can imagine it being implemented
-using the above low-level functionality.
-
-### How modes can be pushed
-
-**TODO** Clean up this bit.
-
-I'm working on the way modes will be pushed from a rule.
-
-Intuitively, it makes sense that a rule can have two major methods: one is an
-way to execute the parsed rule, another is a way to evaluate the rule as an
-expression. I could theoretically combine these, but I think the overall
-simplicity is greater if I keep them separate.
-
-The result of an execution could be a parse tree. This way, an execution can be
-a place to hook the parsing process and perform customized work. An alternative
-design could be to pass in a writeable reference to the parse tree, so that it
-could be changed, but also so that it could be safely ignored. Which choice is
-better may emerge with more experience. For now I'll return the parse tree.
-
-The result of an evaluation is conceptually a value in the language. For
-example, the parsed string `3.141f` in C would have a value of type `float` and
-the numeric value closest to 3.141 that can be represented in the corresponding
-binary format. It's ultimately up to the language designer to choose exactly how
-to represent values at this level.
-
-I can also imagine having automated `src` and `prefix` methods that would act in
-such a way that the concatenation of `prefix + src` for all parse trees would
-give back exactly the original source code. The separation of `prefix` would
-make it easier to use `src` as a way to perform secondary actions without
-having to worry about preceding whitespace, which was a common case in project
-water.
-
-TODO: I decided now is a good time to start working with a Parser instance
-      called `P`. This will be a good complement to the Runner `R`, and will be
-      a convenient single parameter to pass into parse-aware functions.
-      In particular, this will give me a good single place to call something
-      like `push_mode` and `parse_mode_till_popped`.
-
-In the future I may consider renaming `P` and `R` to `parser` and `runner`, as
-those are more descriptive names. I can also imagine eventually getting a
-`T` or `tree` parameter, similar to that used in `parse5`.
-
-
-### The `Parser` class
+The prototype table has two instance variables: `all_rules` and `rules`.
 
 --]]
 
     local Parser = {all_rules = {}, rules = {}}
+
+--[[
+
+### `all_rules`
+
+Each key in `all_rules` is a mode name, with `<global>` naming the default root
+mode; other names must be identifier tokens, so that a name clash is avoided.
+Each value in `all_rules` is a table mapping rule names to rule objects, which
+we'll describe below.
+
+### `rules`
+
+The `rules` table is effectively a stack of rule tables
+from `all_rules`. The topmost rule table takes priority over lower ones
+when lookups are done in `rules`. There are many use cases of this stack.
+One use is to allow something like virtual grammar lookups, analogous to virtual
+method calls between a superclass and subclass. As a specific example, suppose
+we have a mode that parses a string literal. Then it could expect certain rules
+to be defined previously in the stack that specify the escape character or the
+type of ending delimiter. This flexibility makes the string-parsing mode more
+reusable by other grammars.
+
+A `Parser` instance is straightforward.
+It begins life as an empty table with `Parser` as its metatable, and
+with non-native key lookups delegated to `Parser` using the `__index`
+metamethod.
+
+--]]
 
     function Parser:new()
       assert(self)
@@ -160,6 +125,14 @@ those are more descriptive names. I can also imagine eventually getting a
       self.__index = self
       return setmetatable(parser, self)
     end
+
+--[[
+
+Next we get to the mode pushing and popping mechanics.
+
+TODO HERE
+
+--]]
 
     function Parser:push_mode(mode_name)
       if do_print_extras then
@@ -720,5 +693,84 @@ I'd like the next parse script to be able to parse its own grammar.
 Optionally, I'd like to be able to toggle whitespace prefixing on and off.
 
 ### Thoughts on future scripts
+
+--]]
+
+------------------------------------------------------------------------------
+-- TODO Stuff to decide where it goes.
+------------------------------------------------------------------------------
+
+--[[
+
+*TODO Clean up these preliminary notes on the `Parser` class.*
+
+### Future functionality
+
+One thing I'd like to be able to handle is an easy-to-notate and perhaps
+intrarule change in whitespace handling. For example, in the list of items
+that make up a seq-rule, we may have star items. A star item is a rule name
+immediately followed by a `'?'` token, without any whitespace between the
+two. There's currently no way to specify this lack of whitespace.
+
+I don't think the bottom level is the best place to code this ability.
+Instead, I'd like to try to make the bottom level enable this feature, and
+require a higher layer to make this feature easy to use. In particular,
+I can add a hook to allow a rule to modify the parser state. Ideally, the
+hook would implicitly save the parser state and restore it once the rule
+was done being parsed, whether it was successful or not. This could use
+the same lightweight mechanism as is used for pushing or popping modes.
+This design has the advantage of being easy to use correctly and difficult
+to use incorrectly. In particular, I'd like to avoid allowing direct
+access to the push/pop functionality that works behind the scenes.
+I imagine this function may either be unnamed, in which case the syntax
+would be minimal, or it may be named something like
+`preparse`, which is still short, yet conveys a clear sense of when it
+is rule. It excludes language about saving and loading of parsing state,
+since it may be used independently of that functionality.
+
+A design alternative would be to enable a one-off item name, such as `.`,
+that would turn off whitespace between the two enclosing tokens. This
+feels like a good interface, although I can imagine it being implemented
+using the above low-level functionality.
+
+### How modes can be pushed
+
+**TODO** Clean up this bit.
+
+I'm working on the way modes will be pushed from a rule.
+
+Intuitively, it makes sense that a rule can have two major methods: one is an
+way to execute the parsed rule, another is a way to evaluate the rule as an
+expression. I could theoretically combine these, but I think the overall
+simplicity is greater if I keep them separate.
+
+The result of an execution could be a parse tree. This way, an execution can be
+a place to hook the parsing process and perform customized work. An alternative
+design could be to pass in a writeable reference to the parse tree, so that it
+could be changed, but also so that it could be safely ignored. Which choice is
+better may emerge with more experience. For now I'll return the parse tree.
+
+The result of an evaluation is conceptually a value in the language. For
+example, the parsed string `3.141f` in C would have a value of type `float` and
+the numeric value closest to 3.141 that can be represented in the corresponding
+binary format. It's ultimately up to the language designer to choose exactly how
+to represent values at this level.
+
+I can also imagine having automated `src` and `prefix` methods that would act in
+such a way that the concatenation of `prefix + src` for all parse trees would
+give back exactly the original source code. The separation of `prefix` would
+make it easier to use `src` as a way to perform secondary actions without
+having to worry about preceding whitespace, which was a common case in project
+water.
+
+TODO: I decided now is a good time to start working with a Parser instance
+      called `P`. This will be a good complement to the Runner `R`, and will be
+      a convenient single parameter to pass into parse-aware functions.
+      In particular, this will give me a good single place to call something
+      like `push_mode` and `parse_mode_till_popped`.
+
+In the future I may consider renaming `P` and `R` to `parser` and `runner`, as
+those are more descriptive names. I can also imagine eventually getting a
+`T` or `tree` parameter, similar to that used in `parse5`.
 
 --]]
