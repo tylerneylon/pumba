@@ -17,17 +17,50 @@ Usage:
 
     lua parse7.lua.md 04.input
 
-This file adds *modes* to grammars and parsing.
-Different parsing modes can parse different grammars. I envision this as a nice
-way to support a parser that can fluidly switch between languages. It has also
-been useful in switching from an essentially token-based parsing environment to
-a string or multiline string environment and back.
+### Modes
 
-This script uses parse modes internally,
-and is able to parse a grammar that includes different parse modes.
-It does not run anything; it only parses.
+This file adds a major feature to grammars called *modes*. Every mode can
+have its own completely independent grammar, or it can be designed to interact
+with other grammars. For example, the grammar parsed by this script includes a
+`regex` rule that parses string literals. Rather than writing a regular
+expression to parse these string literals, I decided to use a mode. Below are
+the relevant rules.
 
-The biggest change from `parse6` to this script is the addition of the `Parser`
+    # This sequential rule is in the global mode:
+
+    regex -->
+      '"' -str
+
+The `-str` item instructs the parser to enter the mode called `str` until that
+mode exits.
+
+    # These rules make up the str mode:
+
+    phrase --> escaped_char | regular_char | end_char
+    escaped_char -->
+      '\\' "."
+    regular_char -->
+      "[^\"]"
+    end_char -->
+      '"' <pop>
+
+Recall that `phrase` is the default rule parsed repeatedly until either an error
+occurs or the string being parsed is exhausted.
+The `str` mode parses small character sequences at a time: either an escaped
+character, a non-escaped non-quote character, or an ending quote. Notice the
+special `<pop>` item at the end of the `end_char` rule. This instructs the
+parser to exit the current mode after parsing an end quote, effectively
+completing the `regex` rule. The word *pop* is used because modes are treated as
+a stack; this mechanic is explained below.
+
+In a sense, modes allow a grammar to treat an entire subgrammar as a single
+parse item. I imagine this being useful for conceptually different parse modes
+such as strings, comments, or for switching languages.
+
+### Code changes
+
+Outside of modes, the biggest change from `parse6` to this script is the
+addition of the `Parser`
 class, which acts as a central place to store changing parser data and to
 promote consistency of this data. Previous parsing scripts only included a
 `rules` table, but now the `Parser` instance also includes an `all_rules` table
@@ -104,7 +137,9 @@ we'll describe below.
 
 The `rules` table is effectively a stack of rule tables
 from `all_rules`. The topmost rule table takes priority over lower ones
-when lookups are done in `rules`. There are many use cases of this stack.
+when lookups are done in `rules`.
+
+There are many use cases of this stack.
 One use is to allow something like virtual grammar lookups, analogous to virtual
 method calls between a superclass and subclass. As a specific example, suppose
 we have a mode that parses a string literal. Then it could expect certain rules
