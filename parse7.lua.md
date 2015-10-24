@@ -165,7 +165,29 @@ metamethod.
 
 Next we get to the mode pushing and popping mechanics.
 
-TODO HERE
+The global `Parser` instance is called `P`.
+A new mode can be pushed by calling `P:push_mode(mode_name)`.
+This updates the table `self.rules`, via which all rules are accessed during the
+parse. In particular, a rule with name `rule_name` will always be looked up as
+`self.rules[rule_name]`, and it's up to `P:push_mode` to ensure that
+`self.rules` will give the correct value, taking into account the entire mode
+stack.
+
+If `old_rule` is an existing rule before the push, and the pushed mode doesn't
+have its own definition of `old_rule`, then we want to keep using the pre-push
+value for this rule. Conceptually, this is just like the old rule set being used
+as the `__index` value for the new rule set.
+
+However, there would be a problem if we directly set `__index` to point to the
+previous rule table in the stack. In particular, a single mode may be on the
+stack in multiple places. So we can't directly associate any delegation behavior
+with a mode table. Instead, we'll create empty placeholder tables with custom
+metatables that know to first attempt a lookup in the mode they represent, and
+then perform a fallback lookup in the next-in-stack placeholder table.
+
+This behavior requires the use of an anonymous `__index` function defined within
+`P:push_mode`. The placeholder's metatable also has an `up` key to keep track of
+the next-in-stack table in order to enable popping.
 
 --]]
 
@@ -174,11 +196,13 @@ TODO HERE
         print('Parse mode ' .. mode_name .. ' pushed onto stack')
       end
       assert(self and mode_name)
+
       -- We can't alter the metatables of self.all_rules[mode_name] since a
       -- single mode may end up on the stack at multiple levels.
       local mode_rules = self.all_rules[mode_name]
       local up_rules = self.rules
 
+      -- Define the metatable for the new placeholder rules table.
       local meta = {
         __index = function (tbl, key)
           -- print('lookup on self.rules (tbl=' .. tostring(tbl) ..
@@ -189,8 +213,16 @@ TODO HERE
         end,
         up = up_rules
       }
+
+      -- Create the empty placeholder table, set its metatable, and set `rules`.
       self.rules = setmetatable({}, meta)
     end
+
+--[[
+
+TODO HERE
+
+--]]
 
     function Parser:pop_mode()
       if do_print_extras then
