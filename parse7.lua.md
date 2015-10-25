@@ -220,7 +220,10 @@ the next-in-stack table in order to enable popping.
 
 --[[
 
-TODO HERE
+Popping a mode is relatively easy.
+We only need to replace the `rules` table with the next-on-top placeholder
+table. This will be the value of the `up` key in the current rule's table's
+metatable.
 
 --]]
 
