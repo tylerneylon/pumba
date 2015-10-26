@@ -11,11 +11,23 @@
 
 --[[
 
-*This file is designed to be read after being processed as markdown.*
+This is a literate implementation of a dynamic parser that is a step toward an
+open compiler. It is at once a valid Lua program and a valid markdown file. It's
+meant to be read by humans who'd like to learn how the program works in a manner
+similar to how they'd read an article.
 
-Usage:
+The actual Lua program is given in code blocks between paragraphs. Some example
+code blocks are also present; these examples are distinguished by a
+double-hyphen prefix. Here is how you can see this program in action by running
+it from the shell:
 
-    lua parse7.lua.md 04.input
+    -- Example shell usage:
+    -- 
+    -- lua parse7.lua.md 04.input
+
+This file is just one step in a project of large scope. I won't usually comment
+my files so carefully, but I wanted to get some practice with literate
+programming, and I thought this particular step was interesting.
 
 ### Modes
 
@@ -26,23 +38,23 @@ with other grammars. For example, the grammar parsed by this script includes a
 expression to parse these string literals, I decided to use a mode. Below are
 the relevant rules.
 
-    # This sequential rule is in the global mode:
-
-    regex -->
-      '"' -str
+    -- Example grammar: a sequential rule in the global mode:
+    -- 
+    -- regex -->
+    --   '"' -str
 
 The `-str` item instructs the parser to enter the mode called `str` until that
 mode exits.
 
-    # These rules make up the str mode:
-
-    phrase --> escaped_char | regular_char | end_char
-    escaped_char -->
-      '\\' "."
-    regular_char -->
-      "[^\"]"
-    end_char -->
-      '"' <pop>
+    -- Example: These rules make up the str mode:
+    -- 
+    -- phrase --> escaped_char | regular_char | end_char
+    -- escaped_char -->
+    --   '\\' "."
+    -- regular_char -->
+    --   "[^\"]"
+    -- end_char -->
+    --   '"' <pop>
 
 Recall that `phrase` is the default rule parsed repeatedly until either an error
 occurs or the string being parsed is exhausted.
@@ -222,7 +234,7 @@ the next-in-stack table in order to enable popping.
 
 Popping a mode is relatively easy.
 We only need to replace the `rules` table with the next-on-top placeholder
-table. This will be the value of the `up` key in the current rule's table's
+table. This will be the value of the `up` key in the current rule table's
 metatable.
 
 --]]
@@ -235,9 +247,62 @@ metatable.
       self.rules = getmetatable(self.rules).up
     end
 
+--[[
+
+The primary entry point to the parser is the `parse` method, which accepts a
+string input with the source, and on success returns a `tree, tail` result.
+A single call to this method parses a single `phrase` in the current mode of the
+parser. The expected usage is that this method will be called on the source
+repeatedly until there is no source left to parse, or until an error is
+reported. An error is reported by returning a tree value of `no match`, as a
+string. Most of this work is delegated across several parsing functions.
+
+--]]
+
     function Parser:parse(str)
       return self:parse_rule(str, 'phrase')
     end
+
+--[[
+
+The `parse_rule` method is the main dispatcher of rule parsing to more specific
+functions. It accepts the source string along with any string containing a valid
+item value, and attempts to parse that item from the prefix of the source.
+
+Until now, the word *item* has been used informally to describe a single element
+on the right side of a grammar rule. It's a good time to be more precise.
+
+The following are all the valid types of items. These descriptions mostly match
+both the vision and the implementation, but where they differ, I'll describe the
+vision rather than the implementation.
+
+* A *subrule* is named with an identifier that starts with a letter or
+  underscore, and continues with alphanumeric or underscore characters,
+  containing no other characters. This item is matched using the rule it names.
+* A *literal* is a single quote `'`-delimited string. It matches exactly the
+  characters inside the single quotes. For now, `parse_rule` does not respect
+  any escaped characters in a literal, and simply trims off the first and last
+  characters, expected to both be `'`.
+* A *string pattern*, similar to a regular expression, delimited by double
+  quote `"` characters. The pattern matching is based on Lua's internal system,
+  and is essentially the same as regular expressions except that parenthesized
+  subexpressions cannot be followed by any of the `+*?` operators, and there is
+  no `|` or operator.
+* An *optional* or *repeated* item, which is any valid item followed by a `?` or
+  `*` character. If the last character is `?`, then 0 or 1 of the item are
+  matched. If it's `*`, then 0 or more are matched.
+* A *mode parse* item, which is the character `-` followed by a mode name. This
+  item pushes the new mode, then repeatedly parses the `phrase` rule in the
+  resulting mode stack until the mode is popped, or a parse error occurs.
+* A *special case* `<pop>` item, which parses nothing, but pops the current mode
+  and returns a special case tree value indicating that this action was taken.
+  In a correctly-designed grammar, this return value will never be seen at a top
+  level parse call, and only be used internally, within the parse of a single
+  top-level `phrase` rule.
+
+TODO HERE
+
+--]]
 
     function Parser:parse_rule(str, rule_name)
       local last_char = rule_name:sub(#rule_name, #rule_name)
