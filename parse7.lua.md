@@ -130,6 +130,8 @@ I prefer the class interface for a couple reasons:
   more readable code if the entire api is made of method calls rather than a mix
   of functions and methods. It feels more consistent and organized.
 
+### The prototype and instance variables
+
 The prototype table has two instance variables: `all_rules` and `rules`.
 
 --]]
@@ -138,14 +140,14 @@ The prototype table has two instance variables: `all_rules` and `rules`.
 
 --[[
 
-### `all_rules`
+#### `all_rules`
 
 Each key in `all_rules` is a mode name, with `<global>` naming the default root
 mode; other names must be identifier tokens, so that a name clash is avoided.
 Each value in `all_rules` is a table mapping rule names to rule objects, which
 we'll describe below.
 
-### `rules`
+#### `rules`
 
 The `rules` table is effectively a stack of rule tables
 from `all_rules`. The topmost rule table takes priority over lower ones
@@ -158,6 +160,8 @@ we have a mode that parses a string literal. Then it could expect certain rules
 to be defined previously in the stack that specify the escape character or the
 type of ending delimiter. This flexibility makes the string-parsing mode more
 reusable by other grammars.
+
+### `new()`
 
 A `Parser` instance is straightforward.
 It begins life as an empty table with `Parser` as its metatable, and
@@ -174,6 +178,8 @@ metamethod.
     end
 
 --[[
+
+### `push_mode()`
 
 Next we get to the mode pushing and popping mechanics.
 
@@ -232,6 +238,8 @@ the next-in-stack table in order to enable popping.
 
 --[[
 
+### `pop_mode()`
+
 Popping a mode is relatively easy.
 We only need to replace the `rules` table with the next-on-top placeholder
 table. This will be the value of the `up` key in the current rule table's
@@ -249,6 +257,8 @@ metatable.
 
 --[[
 
+### `parse()`
+
 The primary entry point to the parser is the `parse` method, which accepts a
 string input with the source, and on success returns a `tree, tail` result.
 A single call to this method parses a single `phrase` in the current mode of the
@@ -264,6 +274,8 @@ string. Most of this work is delegated across several parsing functions.
     end
 
 --[[
+
+### `parse_rule()`
 
 The `parse_rule` method is the main dispatcher of rule parsing to more specific
 functions. It accepts the source string along with any string containing a valid
@@ -300,7 +312,14 @@ vision rather than the implementation.
   level parse call, and only be used internally, within the parse of a single
   top-level `phrase` rule.
 
-TODO HERE
+Each of these cases are handled by more specific functions defined below.
+
+This function contains the first *reference point*. These are places in the code
+where I have specific improvement ideas. The details of all reference points are
+listed at the bottom of this file in the *reference points* sections.
+
+TODO Clean up the `do_print_extras` sections. Right now they're unexplained and
+the name is not clear.
 
 --]]
 
@@ -311,6 +330,9 @@ TODO HERE
         local str_start = string.format('%q', str:sub(1, 10)):gsub('\n', 'n')
         print(string.format('str begins %s', str_start))
       end
+
+      -- Handle item types: literal, optional, repeated, mode, or <pop>.
+
       if last_char == "'" then
         return parse_literal(str, rule_name:sub(2, #rule_name - 1))
       elseif last_char == '"' then
@@ -328,14 +350,9 @@ TODO HERE
 
       -- Try to treat it as a basic rule name.
 
-      -- TODO Add a way to inspect the mode name at each mode level in the rules
-      --      stack.
-
       local rule = self.rules[rule_name]
       if rule == nil then
-        -- TODO It would be useful to print out more info here. At least the
-        --      current mode stack. Possibly also a stack of how we got here in
-        --      the grammar tree.
+        -- Reference point A.
         print('Error in internal grammar! missing rule: ' .. rule_name)
         os.exit(1)
       end
@@ -347,6 +364,14 @@ TODO HERE
         error('Unknown rule kind: ' .. tostring(rule.kind))
       end
     end
+
+--[[
+
+### `parse_or_rule()` and `parse_seq_rule()`
+
+TODO HERE
+
+--]]
 
     function Parser:parse_or_rule(str, rule)
       local tree = {name = rule.name, kind = 'or', kids={}}
@@ -907,5 +932,20 @@ TODO: I decided now is a good time to start working with a Parser instance
 In the future I may consider renaming `P` and `R` to `parser` and `runner`, as
 those are more descriptive names. I can also imagine eventually getting a
 `T` or `tree` parameter, similar to that used in `parse5`.
+
+TODO: Clean up the placement/expression of this future work item:
+TODO Add a way to inspect the mode name at each mode level in the rules stack.
+
+## Reference points
+
+This section refers to commented reference points within the code above.
+As an example, *Point D* can be found by searching for *Reference point D* in
+this file.
+
+### Point A
+
+In `Parser:parse_rule`, this would be a good place to add more error
+information, such as the current mode stack and possibly a trace of how we got
+there in the grammar tree.
 
 --]]
