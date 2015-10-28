@@ -369,7 +369,20 @@ the name is not clear.
 
 ### `parse_or_rule()` and `parse_seq_rule()`
 
-TODO HERE
+These are the first methods that explicitly build a `tree` object as a return
+value. Each tree will always have at least these keys:
+
+| Key  |  Meaning                                                            |
+| ---- | ------------------------------------------------------------------- |
+| name | the name of the grammar rule that was parsed                        |
+| kind | either `'seq'` or `'or'`                                            |
+| kids | all subtrees in order for a seq-rule; a single item for an or-rule  |
+
+Each individual item is attempted to be parsed using `parse_rule`.
+Parse failures provide the string `'no match'` instead of a tree object as the
+first return value.
+
+An or rule has a complete match as soon as *any* subrule is parsed successfully.
 
 --]]
 
@@ -385,6 +398,13 @@ TODO HERE
       return 'no match', str
     end
 
+--[[
+
+A seq rule only succeeds when *all* of its subrules can be parsed in order from
+the given source string `str`.
+
+--]]
+
     function Parser:parse_seq_rule(str, rule)
       local tree = {name = rule.name, kind = 'seq', kids = {}}
       local subtree, tail = nil, str
@@ -399,6 +419,19 @@ TODO HERE
       return tree, tail
     end
 
+--[[
+
+### `parse_multi_rule()`
+
+This method parses optional rules that end with a `?` character, and repeated
+rules that end with `*` character. As above, `parse_rule` is used to parse the
+rule name after this last special character has been removed.
+
+This method is interesting in that it can successfully match an empty string,
+and thus can't fail to find a match.
+
+--]]
+
     function Parser:parse_multi_rule(str, rule, last_char)
       local tree_kind = (last_char == '*' and 'star' or 'question')
       local tree = {name = last_char .. rule.name, kind = tree_kind, kids = {}}
@@ -411,6 +444,14 @@ TODO HERE
       end
       return tree, tail
     end
+
+--[[
+
+### `parse_mode_till_popped()`
+
+TODO HERE
+
+--]]
 
     function Parser:parse_mode_till_popped(str, mode)
       local rules_when_done = self.rules
