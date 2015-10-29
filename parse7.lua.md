@@ -547,7 +547,6 @@ TODO Carefully clean up the commented-out lines here. *Carefully* means to
       --print('parse_literal(' .. str .. ', ' .. lit_str .. ')')
       local re = '^ *(' .. escaped_lit(lit_str) .. ')'
       --print('re=' .. re)
-      -- Reference point C.
       local s, e, val = str:find(re)
       --print('s, e, val = ', s, e, val)
       if s == nil then return 'no match', str end
