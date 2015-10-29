@@ -449,7 +449,9 @@ and thus can't fail to find a match.
 
 ### `parse_mode_till_popped()`
 
-TODO HERE
+This function pushes a new mode and repeatedly parses the `phrase` rule until
+the new mode is popped. For now, the code ignores the possibility of parse
+failures.
 
 --]]
 
@@ -458,10 +460,33 @@ TODO HERE
       self:push_mode(mode)
       local tree = {name = '<mode:' .. mode .. '>', kind = 'seq', kids = {}}
       repeat
+        -- Reference point B.
         tree.kids[#tree.kids + 1], str = self:parse(str)
       until self.rules == rules_when_done
       return tree, str
     end
+
+--[[
+
+### `add_rules_to_mode()`
+
+A simplistic way to add a rule to a `Parser` instance would be something like
+this:
+
+    -- if P.all_rules[mode_name] == nil then P.all_rules[mode_name] = {} end
+    -- P.all_rules[mode_name][rule_name] = {..rule data..}
+
+This could theoretically work, but it requires the user to repeat a non-short
+code pattern for a common and conceptually simple operation. It makes the
+interface easier to use incorrectly. So this operation is handled through the
+`add_rules_to_mode()` method. As a bonus, the method also ensures that each
+rule has a consistently-set `name` key.
+
+We haven't seen any rule definitions yet, although previous methods have used
+the `rule.items` table and the `rule.kind` string. Some concrete rule data will
+be given below.
+
+--]]
 
     function Parser:add_rules_to_mode(mode, new_rules)
       -- Ensure the mode exists.
@@ -474,6 +499,76 @@ TODO HERE
     end
 
     local P = Parser:new()
+
+
+------------------------------------------------------------------------------
+-- Metaparse functions.
+------------------------------------------------------------------------------
+
+--[[
+
+These functions may live outside of any Parser instance as they depend
+on nothing beyond the string and regex or literal handed to them. In
+contrast, parse methods in `Parser` care about the current context of
+named rules.
+
+The next two functions are the only leaf-parsers. The current code 
+allows arbitrary space characters before any literal or regular expression. This
+is not always what we want. For example, in the string-parsing mode, we don't
+want to silenly parse space characters; they should be explicitly parsed as
+belonging to the grammar's items.
+
+Similar to `Parser`'s parsing methods, these functions accept a source string
+and return a `tree`, `tail` pair. The `tree` has the following keys.
+
+| Key  |  Meaning                                                            |
+| ---- | ------------------------------------------------------------------- |
+| name | either `'lit'` for a literal, or `'re'` for a regular expression    |
+| val  | the matched substring of the source, excluding any leading spaces   |
+
+### `parse_literal()`
+
+Lua's standard string library includes pattern-based string matching functions.
+The `parse_literal` function uses `string.find`, which finds a pattern instead
+of a literal substring. We use the pattern capabilities to skip over leading
+spaces, and then to capture in `val` only the portion matching exactly the
+argument `lit_str`. This requires us to escape `lit_str` to avoid treating any
+regular-expressiony characters in it as special; this is done with the
+soon-to-be-defined `escaped_lit` function.
+
+TODO Carefully clean up the commented-out lines here. *Carefully* means to
+     consider keeping prints that may be useful for future debugging.
+
+--]]
+
+
+
+    function parse_literal(str, lit_str)
+      --print('parse_literal(' .. str .. ', ' .. lit_str .. ')')
+      local re = '^ *(' .. escaped_lit(lit_str) .. ')'
+      --print('re=' .. re)
+      -- Reference point C.
+      local s, e, val = str:find(re)
+      --print('s, e, val = ', s, e, val)
+      if s == nil then return 'no match', str end
+      return {name = '<lit>', value = val}, str:sub(e + 1)
+    end
+
+    function parse_regex(str, full_re)
+      local re_list = {}
+      for re_item in full_re:gmatch('[^|]+') do
+        re_list[#re_list + 1] = '^ *(' .. re_item .. ')'
+      end
+      for _, re in ipairs(re_list) do
+        local s, e, val = str:find(re)
+        if s then return {name = '<re>', value = val}, str:sub(e + 1) end
+      end
+      return 'no match', str
+    end
+
+    function escaped_lit(lit_str)
+      return lit_str:gsub('[^A-Za-z]', '%%%0')
+    end
 
 
 ------------------------------------------------------------------------------
@@ -600,42 +695,6 @@ if none of the previous or-rule items match.
     -- TODO Ensure this parser knows how to handle mode items such as '-str'.
 
     P:push_mode('<global>')
-
-
-------------------------------------------------------------------------------
--- Metaparse functions.
-------------------------------------------------------------------------------
-
-    -- These functions may live outside of any Parser instance as they depend
-    -- on nothing beyond the string and regex or literal handed to them. In
-    -- contrast, parse methods in Parser care about the current context of
-    -- named rules.
-
-    function parse_literal(str, lit_str)
-      --print('parse_literal(' .. str .. ', ' .. lit_str .. ')')
-      local re = '^ *(' .. escaped_lit(lit_str) .. ')'
-      --print('re=' .. re)
-      local s, e, val = str:find(re)
-      --print('s, e, val = ', s, e, val)
-      if s == nil then return 'no match', str end
-      return {name = '<lit>', value = val}, str:sub(e + 1)
-    end
-
-    function parse_regex(str, full_re)
-      local re_list = {}
-      for re_item in full_re:gmatch('[^|]+') do
-        re_list[#re_list + 1] = '^ *(' .. re_item .. ')'
-      end
-      for _, re in ipairs(re_list) do
-        local s, e, val = str:find(re)
-        if s then return {name = '<re>', value = val}, str:sub(e + 1) end
-      end
-      return 'no match', str
-    end
-
-    function escaped_lit(lit_str)
-      return lit_str:gsub('[^A-Za-z]', '%%%0')
-    end
 
 
 ------------------------------------------------------------------------------
@@ -985,8 +1044,13 @@ this file.
 
 ### Point A
 
-In `Parser:parse_rule`, this would be a good place to add more error
+In `Parser:parse_rule()`, this would be a good place to add more error
 information, such as the current mode stack and possibly a trace of how we got
 there in the grammar tree.
+
+### Point B
+
+In `Parser:parse_mode_till_popped()`, this is a good place to detect parse
+failures and to propagate those out to the caller.
 
 --]]
