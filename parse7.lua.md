@@ -541,8 +541,6 @@ TODO Carefully clean up the commented-out lines here. *Carefully* means to
 
 --]]
 
-
-
     function parse_literal(str, lit_str)
       --print('parse_literal(' .. str .. ', ' .. lit_str .. ')')
       local re = '^ *(' .. escaped_lit(lit_str) .. ')'
@@ -552,6 +550,20 @@ TODO Carefully clean up the commented-out lines here. *Carefully* means to
       if s == nil then return 'no match', str end
       return {name = '<lit>', value = val}, str:sub(e + 1)
     end
+
+--[[
+
+### `parse_regex()`
+
+This function accepts a string input `full_re` of the form `p1|p2|p3` where the
+substrings `p1`, `p2`, and so on are all standard Lua search patterns. As a
+reminder, Lua doesn't directly support the `|` character as an *or* operator,
+but instead treats it as a literal character. This function adds back some of
+that functionality by supporting top-level-only *or* clauses. Similar to
+`parse_literal()`, it returns a `tree` object with `name` and `value` keys; or
+the `'no match'` string if the given `full_re` doesn't match a prefix of `str`.
+
+--]]
 
     function parse_regex(str, full_re)
       local re_list = {}
@@ -564,6 +576,20 @@ TODO Carefully clean up the commented-out lines here. *Carefully* means to
       end
       return 'no match', str
     end
+
+--[[
+
+### `escaped_lit()`
+
+This function returns an edited string that, when used as a Lua pattern, returns
+literal matches for the input string `lit_str`. The replacement string `'%%%0'`
+in the `gsub` call causes Lua to replace every non-alphabetic character with a
+`%`-escaped copy of that character. It would be bad to escape alphabetic
+characters - an example would be `%a` - because many of those are treated as
+character classes, where as something like `%.` will simply match a literal `.`
+character.
+
+--]]
 
     function escaped_lit(lit_str)
       return lit_str:gsub('[^A-Za-z]', '%%%0')
