@@ -17,8 +17,11 @@ meant to be read by humans who'd like to learn how the program works in a manner
 similar to how they'd read an article.
 
 The actual Lua program is given in code blocks between paragraphs. Some example
-code blocks are also present; these examples are distinguished by a
-double-hyphen prefix. Here is how you can see this program in action by running
+or comment code blocks are also present; these examples are distinguished by a
+double-hyphen prefix. All other code is live and seen by Lua when you run this
+script.
+
+Here is how you can see this program in action by running
 it from the shell:
 
     -- Example shell usage:
