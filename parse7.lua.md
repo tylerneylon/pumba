@@ -498,6 +498,12 @@ be given below.
       end
     end
 
+--[[
+
+Now we're ready to create a `Parser` instance, which we'll call `P`.
+
+--]]
+
     local P = Parser:new()
 
 
@@ -730,13 +736,17 @@ escape sequences whatsoever.
       end_char     = { kind = 'seq', items = {[['"']], '<pop>'} }
     })
 
-    -- TODO HERE
+--[[
 
-    -- TODO NEXT Figure out how to indicate no whitespace prefix in certain
-    --           places in the grammar. For example, in {star,qusetion}_item, as
-    --           well as in the str mode.
+At this point we've set up data for the two modes `<global>` and `str`. This
+data lives in `P.all_rules`, but is not yet accessible from `P.rules`, where
+parse rules are found at parse time. In order to make the global mode active, we
+need to push it onto the parser's mode stack. As a design decision, this action
+could have been taken within
+`Parser:new`, but leaving it out makes the name `<global>` less hard-coded and
+thus leaves the `Parser` class somewhat more elegant.
 
-    -- TODO Ensure this parser knows how to handle mode items such as '-str'.
+--]]
 
     P:push_mode('<global>')
 
@@ -744,6 +754,24 @@ escape sequences whatsoever.
 ------------------------------------------------------------------------------
 -- Tree running functions.
 ------------------------------------------------------------------------------
+
+--[[
+
+One long-term goal of this project is to be able to specify at once both a
+grammar and a set of behaviors for the resulting parse tree. Internally, these
+two behaviors are captured by the `Parser` class and the `Run` class - which may
+eventually be renamed to `Runner` for consistency. The code in this section
+specifies the `Run` class but is *not used* in this script. It exists for its
+future use in the more complete open compiler implementations.
+
+Since this code is not used, these literate comments will not cover it in
+detail. To understand its place in the big picture, though, it's useful to know
+that the main entry point to a `Run` instance `R` is the method `R:run()` called
+with a `tree` that was returned by `P:parse()`. The tree elements
+themselves will eventually have a key called `run` whose value is a string of
+Lua code that will be executed by `R:run()`.
+
+--]]
 
     -- This sets the given key-value pair at the closest level where the key
     -- exists; if it is new key at all levels, it's created at the current
@@ -828,6 +856,12 @@ escape sequences whatsoever.
 ------------------------------------------------------------------------------
 -- General utility functions.
 ------------------------------------------------------------------------------
+
+--[[
+
+TODO HERE
+
+--]]
 
     -- This is an easy-case deep copy function. Cases it doesn't handle:
     --  * recursive structures
@@ -1095,6 +1129,10 @@ Eventually, it would be nice to allow till-newline comments in grammar specs.
 
 TODO Be able to correctly handle mistakes in `str` mode such as the source
      ending with a single backslash.
+
+    -- TODO NEXT Figure out how to indicate no whitespace prefix in certain
+    --           places in the grammar. For example, in {star,qusetion}_item, as
+    --           well as in the str mode.
 
 ## Reference points
 
