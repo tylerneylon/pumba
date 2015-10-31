@@ -602,70 +602,87 @@ character.
 
 --[[
 
+Now we're ready to define the grammar that this script will parse. This script
+is specifically designed to parse the file `04.input`, which contains a sample
+grammar for a C-like language. The format of `04.input` is very similar to the
+grammar comments immediately below, which can be used as both an example of
+the syntax being parsed as well as a human-friendly yet formal version of the
+grammar this script can parse.
+
+As a reminder, the top-most rule is called `phrase`,
+regular expressions are enclosed in double quotes, and literal string matches
+are enclosed in single quotes. Single-line rules are **or** rules, and can't
+produce leaf elements in the resulting parse tree. Two-line rules are **seq**
+rules - short for *sequence* rules - and may or may not result in leaf items in
+the parse tree.
+
 ### The global grammar
 
-Below is the grammar I plan to set up, with global rules given first.
-In the `mode_item` rule, I use the item `rule_name`, although, semantically,
-that item is actually a mode name.
+This script's grammar contains both a global mode and a `str` mode for string
+parsing. Here are the rules for the global mode:
 
-    phrase --> statement | empty_line
-    empty_line -->
-      '\n'
-    statement --> rules_start | rule
-    rules_start --> global_start | mode_start
-    global_start -->
-      '>' '\n'
-    mode_start -->
-      '>' rule_name '\n'
-    rule -->
-      rule_name '-->' rule_items
-    rule_items --> or_items | seq_items
-    or_items -->
-      basic_item or_and_item* '\n'
-    seq_items -->
-      '\n' item item* '\n'
-    basic_item --> literal | regex | rule_name
-    or_and_item -->
-      '|' basic_item
-    item --> '<pop>' | mode_item | star_item | question_item | basic_item
-    literal -->
-      "'[^']*'"
-    regex -->
-      '"' -str
-    rule_name -->
-      "[A-Za-z_][A-Za-z0-9_]*"
-    mode_item -->
-      '-' rule_name
-    star_item -->
-      basic_item '*'
-    question_item -->
-      basic_item '?'
-
-### Plan for future global grammar
-
-In writing this out, I realized that the initial global rule set makes the most
-sense as something small. In particular, parsing of rules belongs in a mode, and
-by default, we won't be in that mode. As an example of why this makes sense, the
-current rule setup may see an isolated rule without an introductory `>` phrase,
-and still parse that rule. That's bad behavior. It also feels cleaner if the
-global rule set is extremely small to begin with.
-
-Eventually, it would be nice to allow till-newline comments in grammar specs.
+    -- phrase --> statement | empty_line
+    -- empty_line -->
+    --   '\n'
+    -- statement --> rules_start | rule
+    -- rules_start --> global_start | mode_start
+    -- global_start -->
+    --   '>' '\n'
+    -- mode_start -->
+    --   '>' rule_name '\n'
+    -- rule -->
+    --   rule_name '-->' rule_items
+    -- rule_items --> or_items | seq_items
+    -- or_items -->
+    --   basic_item or_and_item* '\n'
+    -- seq_items -->
+    --   '\n' item item* '\n'
+    -- basic_item --> literal | regex | rule_name
+    -- or_and_item -->
+    --   '|' basic_item
+    -- item --> '<pop>' | mode_item | star_item | question_item | basic_item
+    -- literal -->
+    --   "'[^']*'"
+    -- regex -->
+    --   '"' -str
+    -- rule_name -->
+    --   "[A-Za-z_][A-Za-z0-9_]*"
+    -- mode_item -->
+    --   '-' rule_name
+    -- star_item -->
+    --   basic_item '*'
+    -- question_item -->
+    --   basic_item '?'
 
 ### The `str` mode grammar for strings
 
-TODO Turn off whitespace prefixes in `str` mode.
+Below are the rules in the `str` mode. This mode is invoked by the `regex` rule
+from the global mode, and is exited when the special `<pop>` item is
+encountered.
 
-Below are the rules in the `str` mode. The `|:` token indicates to pop the mode
-if none of the previous or-rule items match.
+The item `'\\'` matches a single backslash. The item `"."` matches any single
+character. And the item `"[^\"]"` matches any non-quote character.
 
-    phrase --> escaped_char | regular_char | end_char
-    escaped_char -->
-      '\\' "."
-    regular_char -->
-      "[^\"]"
-    end_char -->
-      '"' <pop>
+    -- phrase --> escaped_char | regular_char | end_char
+    -- escaped_char -->
+    --   '\\' "."
+    -- regular_char -->
+    --   "[^\"]"
+    -- end_char -->
+    --   '"' <pop>
+
+The `regular_char` rule avoids matching backslashes
+because the previous `escaped_char` rule will
+capture them. Unless, of course, the entire source data ended with a
+backslash, in which case `escaped_char` would fail to parse the `"."` item. This
+unusual case reveals a bug in the grammar, but one which is not critical since
+this is not production code.
+
+Now we're ready for actual code that will add this rule set to our `Parser`
+instance `P`. This data directly reflects the rules we've just seen.
+In some cases, I've used Lua's double-square-bracket `[[string]]` syntax 
+in order to reduce the number of escape characters needed. This syntax has no
+escape sequences whatsoever.
 
 --]]
 
@@ -712,6 +729,8 @@ if none of the previous or-rule items match.
       regular_char = { kind = 'seq', items = {[["[^"]"]]} },
       end_char     = { kind = 'seq', items = {[['"']], '<pop>'} }
     })
+
+    -- TODO HERE
 
     -- TODO NEXT Figure out how to indicate no whitespace prefix in certain
     --           places in the grammar. For example, in {star,qusetion}_item, as
@@ -1060,6 +1079,22 @@ those are more descriptive names. I can also imagine eventually getting a
 
 TODO: Clean up the placement/expression of this future work item:
 TODO Add a way to inspect the mode name at each mode level in the rules stack.
+
+TODO Turn off whitespace prefixes in `str` mode.
+
+### Plan for future global grammar
+
+In writing this out, I realized that the initial global rule set makes the most
+sense as something small. In particular, parsing of rules belongs in a mode, and
+by default, we won't be in that mode. As an example of why this makes sense, the
+current rule setup may see an isolated rule without an introductory `>` phrase,
+and still parse that rule. That's bad behavior. It also feels cleaner if the
+global rule set is extremely small to begin with.
+
+Eventually, it would be nice to allow till-newline comments in grammar specs.
+
+TODO Be able to correctly handle mistakes in `str` mode such as the source
+     ending with a single backslash.
 
 ## Reference points
 
