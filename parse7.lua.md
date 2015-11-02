@@ -862,7 +862,9 @@ Lua code that will be executed by `R:run()`.
 
 --[[
 
-TODO HERE
+This section contains short, generally useful functions. The `copy()` function
+provides a deep copy of a table, and the `is_empty()` function indicates if a
+string is empty, treating all-whitespace strings as empty.
 
 --]]
 
@@ -884,6 +886,12 @@ TODO HERE
 ------------------------------------------------------------------------------
 -- Debug functions.
 ------------------------------------------------------------------------------
+
+--[[
+
+TODO HERE
+
+--]]
 
     -- This is designed for general Lua values. Anything goes.
     -- The function pr_tree below is better for printing trees.
