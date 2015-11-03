@@ -99,10 +99,14 @@ exactly the useful pieces of data in a small but visually pleasant layout.
 --]]
 
     -- This turns on or off printing from within the run framework.
+    -- Because this script doesn't use the run framework, this boolean currently
+    -- doesn't change any behavior.
     local do_run_dbg_print = false
 
     -- This turns on or off printing of good/bad rule parsing attempts.
     local do_mid_parse_dbg_print = false
+
+    -- TODO HERE Add a high-detail version that wraps parse_{or,seq}_rule.
 
     -- This turns on or off printing debug info about parsing.
     local do_post_parse_dbg_print = true
@@ -609,7 +613,7 @@ character.
 -- Rules.
 ------------------------------------------------------------------------------
 
---[[
+--[=[
 
 Now we're ready to define the grammar that this script will parse. This script
 is specifically designed to parse the file `04.input`, which contains a sample
@@ -693,7 +697,7 @@ In some cases, I've used Lua's double-square-bracket `[[string]]` syntax
 in order to reduce the number of escape characters needed. This syntax has no
 escape sequences whatsoever.
 
---]]
+--]=]
 
     P:add_rules_to_mode('<global>', {
       phrase        = { kind = 'or',  items = {'statement', 'empty_line'} },
@@ -891,6 +895,17 @@ string is empty, treating all-whitespace strings as empty.
 
 TODO HERE
 
+    functions: pr, pr_tree, print_metaparse_info, wrap_metaparse_fn,
+               pr_line_values
+
+    call graph:
+
+    pr_line_values -> pr, pr_tree
+    do_post_parse_dbg_print -> pr_tree
+    wrap_metaparse_fn -> print_metaparse_info *
+    (parse_{or,seq}_rule) -> print_metaparse_info
+    do_parse_dbg_print -> pr_line_values
+
 --]]
 
     -- This is designed for general Lua values. Anything goes.
@@ -916,11 +931,12 @@ TODO HERE
       indent = indent or ''
       io.write(this_indent or indent)
       if tree.name == '<lit>' then
-        print("'" .. tree.value .. "'")
+        print("'" .. tree.value:gsub('\n', '\\n') .. "'")
+        --print("'--------'")
         return
       end
       if tree.value then
-        print(tree.name .. ' ' .. tree.value)
+        print(tree.name .. ' ' .. tree.value:gsub('\n', '\\n'))
         return
       end
       if #tree.kids == 1 then
@@ -936,7 +952,7 @@ TODO HERE
 
     function first_line(str)
       next_newline = str:find('\n') or #str + 1
-      return str:sub(1, next_newline - 1)
+      return str:sub(1, next_newline):gsub('\n', '\\n')
     end
 
     indent = ''
@@ -944,6 +960,7 @@ TODO HERE
     function print_metaparse_info(fn_name, fn, str, rule_name)
       indent = indent .. '  '
       --io.write(indent .. fn_name .. ': ')
+      rule_name = rule_name:gsub('\n', '\\n')  -- Improve readability.
       print(indent .. rule_name .. ' attempting from ' .. first_line(str))
       local tree, tail = fn()
       print(indent .. rule_name .. (tree == 'no match' and ' failed' or ' succeeded'))
@@ -964,9 +981,9 @@ TODO HERE
     --wrap_metaparse_fn('parse_seq_rule')
 
     if do_mid_parse_dbg_print then
-      local original_parse_rule = parse_rule
-      parse_rule = function (str, rule_name)
-        local fn = function () return original_parse_rule(str, rule_name) end
+      local orig_parse_rule = P.parse_rule
+      P.parse_rule = function (self, str, rule_name)
+        local function fn () return orig_parse_rule(self, str, rule_name) end
         return print_metaparse_info('parse_rule', fn, str, rule_name)
       end
     end
@@ -995,7 +1012,7 @@ TODO HERE
     -- Check that they provided an input file name.
     if not arg[1] then
       print('Usage:')
-      print('  ' .. arg[0] .. ' <input_file>')
+      print('  lua ' .. arg[0] .. ' <input_file>')
       os.exit(2)
     end
 
@@ -1144,6 +1161,9 @@ TODO Be able to correctly handle mistakes in `str` mode such as the source
     -- TODO NEXT Figure out how to indicate no whitespace prefix in certain
     --           places in the grammar. For example, in {star,qusetion}_item, as
     --           well as in the str mode.
+
+TODO In the debug print-outs, be able to easily distinguish between a real
+     newline character and a simulated one.
 
 ## Reference points
 
