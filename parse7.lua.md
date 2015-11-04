@@ -106,8 +106,6 @@ exactly the useful pieces of data in a small but visually pleasant layout.
     -- This turns on or off printing of good/bad rule parsing attempts.
     local do_mid_parse_dbg_print = false
 
-    -- TODO HERE Add a high-detail version that wraps parse_{or,seq}_rule.
-
     -- This turns on or off printing debug info about parsing.
     local do_post_parse_dbg_print = true
 
@@ -959,26 +957,14 @@ TODO HERE
 
     function print_metaparse_info(fn_name, fn, str, rule_name)
       indent = indent .. '  '
-      --io.write(indent .. fn_name .. ': ')
       rule_name = rule_name:gsub('\n', '\\n')  -- Improve readability.
       print(indent .. rule_name .. ' attempting from ' .. first_line(str))
       local tree, tail = fn()
-      print(indent .. rule_name .. (tree == 'no match' and ' failed' or ' succeeded'))
+      local outcome_str = (tree == 'no match' and 'failed' or 'succeeded')
+      print(indent .. rule_name .. ' ' .. outcome_str)
       indent = indent:sub(1, #indent - 2)
       return tree, tail
     end
-
-    function wrap_metaparse_fn(metaparse_fn_name)
-      local metaparse_fn = _G[metaparse_fn_name]
-      _G[metaparse_fn_name] = function (str, rule)
-        local fn = function() return metaparse_fn(str, rule) end
-        return print_metaparse_info(metaparse_fn_name, fn, str, rule.name)
-      end
-    end
-
-    -- Turn this on or off to control how verbose parsing is.
-    --wrap_metaparse_fn('parse_or_rule')
-    --wrap_metaparse_fn('parse_seq_rule')
 
     if do_mid_parse_dbg_print then
       local orig_parse_rule = P.parse_rule
