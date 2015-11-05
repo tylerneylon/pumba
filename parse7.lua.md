@@ -109,9 +109,8 @@ exactly the useful pieces of data in a small but visually pleasant layout.
     -- This turns on or off printing debug info about parsing.
     local do_post_parse_dbg_print = true
 
-    -- These are experimental prints to help with debugging. I hope to iterate
-    -- on these statements to maximize their usefulness.
-    local do_print_extras = false
+    -- TODO HERE Choose a good name and add a good description for this.
+    do_parse_dbg_print = false
 
 
 ------------------------------------------------------------------------------
@@ -215,10 +214,11 @@ the next-in-stack table in order to enable popping.
 --]]
 
     function Parser:push_mode(mode_name)
-      if do_print_extras then
-        print('Parse mode ' .. mode_name .. ' pushed onto stack')
-      end
       assert(self and mode_name)
+
+      if do_mid_parse_dbg_print then
+        print((indent or '') .. 'push_mode ' .. mode_name)
+      end
 
       -- We can't alter the metatables of self.all_rules[mode_name] since a
       -- single mode may end up on the stack at multiple levels.
@@ -253,10 +253,12 @@ metatable.
 --]]
 
     function Parser:pop_mode()
-      if do_print_extras then
-        print('popping a mode from the parse mode stack!')
-      end
       assert(self)
+
+      if do_mid_parse_dbg_print then
+        print(indent .. 'pop_mode')
+      end
+
       self.rules = getmetatable(self.rules).up
     end
 
@@ -323,18 +325,10 @@ This function contains the first *reference point*. These are places in the code
 where I have specific improvement ideas. The details of all reference points are
 listed at the bottom of this file in the *reference points* sections.
 
-TODO Clean up the `do_print_extras` sections. Right now they're unexplained and
-the name is not clear.
-
 --]]
 
     function Parser:parse_rule(str, rule_name)
       local last_char = rule_name:sub(#rule_name, #rule_name)
-      if do_print_extras then
-        io.write('parse_rule, rule_name = "' .. rule_name .. '" ')
-        local str_start = string.format('%q', str:sub(1, 10)):gsub('\n', 'n')
-        print(string.format('str begins %s', str_start))
-      end
 
       -- Handle item types: literal, optional, repeated, mode, or <pop>.
 
@@ -900,8 +894,6 @@ TODO HERE
 
     pr_line_values -> pr, pr_tree
     do_post_parse_dbg_print -> pr_tree
-    wrap_metaparse_fn -> print_metaparse_info *
-    (parse_{or,seq}_rule) -> print_metaparse_info
     do_parse_dbg_print -> pr_line_values
 
 --]]
