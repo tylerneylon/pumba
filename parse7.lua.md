@@ -109,8 +109,9 @@ exactly the useful pieces of data in a small but visually pleasant layout.
     -- This turns on or off printing debug info about parsing.
     local do_post_parse_dbg_print = true
 
-    -- TODO HERE Choose a good name and add a good description for this.
-    do_parse_dbg_print = false
+    -- This turns on or off printing of the input and output to each top-level
+    -- phrase parse. This is most useful when working with small phrase strings.
+    do_dbg_print_each_phrase_parse = false
 
 
 ------------------------------------------------------------------------------
@@ -885,7 +886,16 @@ string is empty, treating all-whitespace strings as empty.
 
 --[[
 
-TODO HERE
+This section contains functions to help a grammar debug their own grammar. The
+output of these functions may also eventually be useful in the creation of clear
+and actionable error statements to code writers.
+
+The output of these functions is controlled by the boolean values listed above
+in the *settings* section. I like to keep configuration parameters near the top
+of a script for easier access.
+
+
+TODO vvv   Remove these temp notes.
 
     functions: pr, pr_tree, print_metaparse_info, wrap_metaparse_fn,
                pr_line_values
@@ -894,7 +904,15 @@ TODO HERE
 
     pr_line_values -> pr, pr_tree
     do_post_parse_dbg_print -> pr_tree
-    do_parse_dbg_print -> pr_line_values
+    do_dbg_print_each_phrase_parse -> pr_line_values
+
+TODO ^^^
+
+### `pr()`
+
+This function can prettily print any primitive Lua type and tables. It's used by
+the `pr_tree` function below, although not extensively. It's nice to have a
+function like this handy for general debugging.
 
 --]]
 
@@ -916,6 +934,37 @@ TODO HERE
         end
       end
     end
+
+--[[
+
+### `pr_tree()`
+
+This function produces a clear breakdown of a parse tree into both the rule
+names and the corresponding sections of source text parsed into those rules.
+
+As an example, suppose we have these source lines:
+
+    -- fn_call -->
+    --   word '(' end_of_fn_call
+
+Calling `P:parse()` will return a parse tree. If we call `pr_tree()` on that
+return value, the output looks like this:
+
+    -- phrase - statement - rule
+    --   rule_name fn_call
+    --   '-->'
+    --   rule_items - seq_items
+    --     '\n'
+    --     item - basic_item - rule_name word
+    --     *item
+    --       item - basic_item - literal '('
+    --       item - basic_item - rule_name end_of_fn_call
+    --     '\n'
+
+The above example strings have been prefixed with double hyphens to help
+visually distinguish them from running code.
+
+--]]
 
     function pr_tree(tree, indent, this_indent)
       indent = indent or ''
@@ -939,6 +988,14 @@ TODO HERE
         pr_tree(kid, indent .. '  ')
       end
     end
+
+--[[
+
+TODO HERE
+
+Also mention which functions are used by which settings booleans.
+
+--]]
 
     function first_line(str)
       next_newline = str:find('\n') or #str + 1
@@ -1013,7 +1070,7 @@ TODO HERE
         pr_tree(tree)
       end
 
-      if do_parse_dbg_print then
+      if do_dbg_print_each_phrase_parse then
         pr_line_values(src, tree, tail)
       end
 
