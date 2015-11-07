@@ -111,7 +111,7 @@ exactly the useful pieces of data in a small but visually pleasant layout.
 
     -- This turns on or off printing of the input and output to each top-level
     -- phrase parse. This is most useful when working with small phrase strings.
-    do_dbg_print_each_phrase_parse = false
+    local do_dbg_print_each_phrase_parse = false
 
 
 ------------------------------------------------------------------------------
@@ -991,15 +991,45 @@ visually distinguish them from running code.
 
 --[[
 
-TODO HERE
+### `first_line()` and `print_metaparse_info()`
 
-Also mention which functions are used by which settings booleans.
+The next two functions work together to print out intermediate parsing progress
+as it happens. As a simple exmaple, the very first line of `04.input` consists
+of exactly two characters: a `>` and a newline. These will be parsed into the
+tree below.
+
+    -- phrase - statement - rules_start - global_start
+    --   '>'
+    --   '\n'
+
+If a grammar writer is having difficulty getting a section of source code to be
+parsed correctly, they may find it useful to see each parse rule attempt and
+whether or not it succeeded. This output is produced by the
+`print_metaparse_info()` function, which in turn depends on `first_line()` to
+produce a short prefix of the code being parsed. This output is off by default
+and turned on with the `do_mid_parse_dbg_print` boolean. The output for our
+simple example tree is shown here:
+
+    -- phrase attempting from >\n
+    --   statement attempting from >\n
+    --     rules_start attempting from >\n
+    --       global_start attempting from >\n
+    --         '>' attempting from >\n
+    --         '>' succeeded
+    --         '\n' attempting from \n
+    --         '\n' succeeded
+    --       global_start succeeded
+    --     rules_start succeeded
+    --   statement succeeded
+    -- phrase succeeded
+
+TODO Also mention which functions are used by which settings booleans.
 
 --]]
 
     function first_line(str)
       next_newline = str:find('\n') or #str + 1
-      return str:sub(1, next_newline):gsub('\n', '\\n')
+      return str:sub(1, next_newline):gsub('\n', '\\n')  -- Improve readability.
     end
 
     indent = ''
@@ -1014,6 +1044,12 @@ Also mention which functions are used by which settings booleans.
       indent = indent:sub(1, #indent - 2)
       return tree, tail
     end
+
+--[[
+
+TODO HERE
+
+--]]
 
     if do_mid_parse_dbg_print then
       local orig_parse_rule = P.parse_rule
