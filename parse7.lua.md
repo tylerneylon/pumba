@@ -1047,7 +1047,11 @@ TODO Also mention which functions are used by which settings booleans.
 
 --[[
 
-TODO HERE
+Unlike most of the code so far, this next section actually runs a few statements
+rather than simply defining variables or functions. This is how
+the `do_mid_parse_dbg_pring` boolean takes effect. When it's on, the
+`P.parse_rule()` method is replaced with a wrapper version that prints out
+metaparse information via the above `print_metaparse_info()` function.
 
 --]]
 
@@ -1058,6 +1062,18 @@ TODO HERE
         return print_metaparse_info('parse_rule', fn, str, rule_name)
       end
     end
+
+--[[
+
+### `pr_line_values()`
+
+The next function is activated by the `do_dbg_print_each_phrase_parse` boolean,
+and is used to print out a summary of the parsing progress after each top-level
+phrase is parsed. In this function the `line` refers to the source before the
+latest phrase was parsed, the `tree` is the phrase's parse tree, and the `tail`
+is the source that remains after the phrase.
+
+--]]
 
     function pr_line_values(line, tree, tail)
       print('')
@@ -1079,6 +1095,12 @@ TODO HERE
 ------------------------------------------------------------------------------
 -- Main.
 ------------------------------------------------------------------------------
+
+--[[
+
+TODO HERE
+
+--]]
 
     -- Check that they provided an input file name.
     if not arg[1] then
