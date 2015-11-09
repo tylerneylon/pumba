@@ -1098,7 +1098,9 @@ is the source that remains after the phrase.
 
 --[[
 
-TODO HERE
+At last we're ready for some directly running code.
+First we check that the user has provided an input file name; if not, they see a
+message on how to use this script and not much else.
 
 --]]
 
@@ -1109,11 +1111,32 @@ TODO HERE
       os.exit(2)
     end
 
+--[[
+
+Next we read in the input file and create a `Run` instance `R`. Although `R` is
+not used in this script, it will be in future versions.
+
+--]]
+
     local in_file = arg[1]
     local f = assert(io.open(in_file, 'r'))
     local src = f:read('*a')
     f:close()
     local R = Run:new()
+
+--[[
+
+Next is the main loop. It runs until everything in the source string `src` has
+been parsed as a top-level phrase. Each top-level parse is executed by a call to
+`P:parse()`. If the parse failed, we print an error message and exit. If the
+parse succeeded, then future versions of this script will execute the parse tree
+by a call to `R:run()`. The loop contains explicit clauses for debug printing
+toggled by the `do_post_parse_dbg_print` and `do_dbg_print_each_parse_phrase`
+booleans. It also maintains that `src` is the not-yet-parsed suffix of the
+source, and that `statement_num` counts the index of the phrase about to be
+parsed, beginning with 1.
+
+--]]
 
     local statement_num = 1
     while not is_empty(src) do
