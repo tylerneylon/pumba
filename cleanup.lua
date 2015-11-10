@@ -37,8 +37,10 @@ f:close()
 -- Remove all multiline comment start and end markers that begin a line.
 -- The start of this pattern, '%f[^\n%z]', essentially indicates to only support
 -- matches at the beginning of lines, including possibly the first line.
-text = text:gsub('%f[^\n%z]%-%-%[=*%[ *\n', '')
-text = text:gsub('%f[^\n%z]%-%-%]=*%] *\n', '')
+local line_start = '%f[^\n%z]'
+text = text:gsub(line_start .. '%-%-%[=*%[ *\n', '')
+text = text:gsub(line_start .. '%-%-%]=*%] *\n', '')
+text = text:gsub(line_start .. '%-%- *%f[%w]', '## ')
 
 -- Write to the output file.
 local outfile = basename .. '.md'
