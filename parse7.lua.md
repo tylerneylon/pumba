@@ -1169,6 +1169,15 @@ parsed, beginning with 1.
 
 --[[
 
+### TEMP Rough list of items in this section:
+
+* What the next parse script will do
+* Handling whitespace between tokens
+* How parse trees can be executed and evaluated
+* An idea for a clean global grammar
+* A list of short todo items
+* Reference points
+
 ### The next parse script
 
 I'd like the next parse script to be able to parse its own grammar.
