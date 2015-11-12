@@ -1108,6 +1108,81 @@ parsed, beginning with 1.
 ------------------------------------------------------------------------------
 
 
+The code content of this script is now complete.
+However, since this script is one step in an ongoing project, there are many
+relevant outgoing ideas just itching to be expressed.
+This section mentions some of these ideas.
+
+### What the next script will do
+
+I'd like the next parse script to be able to parse its own grammar.
+This would add a nice sense of closure and consistency to the way a grammar
+works internally with the initial grammar grammar.
+
+I'm also interested in having better control over inter-token whitespace - a
+topic discussed in more detail below.
+This is a secondary goal of lower priority.
+
+### Future parser changes
+
+#### Whitespace between tokens
+
+One thing I'd like to be able to handle is an easy-to-notate and perhaps
+within-rule change in whitespace handling. For example, in the list of items
+that make up a seq-rule, we may have star items.
+The syntax for a star item is a rule name
+immediately followed by a `'*'` token, without any whitespace between the
+two. There's currently no way to specify the lack of whitespace for this syntax.
+
+I don't think the bottom level is the best place to code this ability.
+Instead, I'd like to try to make the bottom level enable this feature, and
+require a higher layer to make this feature easy to use. In particular,
+I can add a hook to allow a rule to modify the parser state. Ideally, the
+hook would implicitly save the parser state and restore it once the rule
+was done being parsed, whether it was successful or not. This could use
+the same lightweight mechanism as is used for pushing or popping modes.
+This design has the advantage of being easy to use correctly and difficult
+to use incorrectly. In particular, I'd like to avoid allowing direct
+access to the push/pop functionality that works behind the scenes.
+I imagine this function may either be unnamed, in which case the syntax
+would be minimal, or it may be named something like
+`preparse`, which is still short, yet conveys a clear sense of when it
+is run. It excludes language about saving and loading of parsing state,
+since it may be used independently of that functionality.
+
+A design alternative would be to enable a one-off item name, such as `.`,
+that would turn off whitespace between the two enclosing tokens. This
+feels like a good interface, although I can imagine it being implemented
+using the above low-level functionality.
+
+#### The future global grammar
+
+In writing this out, I realized that the initial global rule set makes the most
+sense as something small. In particular, parsing of rules belongs in a mode, and
+by default, we won't be in that mode. As an example of why this makes sense, the
+current rule setup may see an isolated rule without an introductory `>` phrase,
+and still parse that rule. That's bad behavior. It also feels cleaner if the
+global rule set is extremely small to begin with.
+
+### Future runner changes
+
+### A few specific todo items
+
+
+
+### TEMP Rough list of items in this section:
+
+* What's immediately next
+  - What the next parse script will do
+* Parser changes
+  - Handling whitespace between tokens
+  - An idea for a clean global grammar
+* Runner changes
+  - How parse trees can be executed and evaluated
+* Reference points and other todo items
+  - Reference points
+  - Other short todo items
+
 ### The next parse script
 
 I'd like the next parse script to be able to parse its own grammar.
@@ -1125,32 +1200,6 @@ Optionally, I'd like to be able to toggle whitespace prefixing on and off.
 
 ### Future functionality
 
-One thing I'd like to be able to handle is an easy-to-notate and perhaps
-intrarule change in whitespace handling. For example, in the list of items
-that make up a seq-rule, we may have star items. A star item is a rule name
-immediately followed by a `'?'` token, without any whitespace between the
-two. There's currently no way to specify this lack of whitespace.
-
-I don't think the bottom level is the best place to code this ability.
-Instead, I'd like to try to make the bottom level enable this feature, and
-require a higher layer to make this feature easy to use. In particular,
-I can add a hook to allow a rule to modify the parser state. Ideally, the
-hook would implicitly save the parser state and restore it once the rule
-was done being parsed, whether it was successful or not. This could use
-the same lightweight mechanism as is used for pushing or popping modes.
-This design has the advantage of being easy to use correctly and difficult
-to use incorrectly. In particular, I'd like to avoid allowing direct
-access to the push/pop functionality that works behind the scenes.
-I imagine this function may either be unnamed, in which case the syntax
-would be minimal, or it may be named something like
-`preparse`, which is still short, yet conveys a clear sense of when it
-is rule. It excludes language about saving and loading of parsing state,
-since it may be used independently of that functionality.
-
-A design alternative would be to enable a one-off item name, such as `.`,
-that would turn off whitespace between the two enclosing tokens. This
-feels like a good interface, although I can imagine it being implemented
-using the above low-level functionality.
 
 ### How modes can be pushed
 
@@ -1197,14 +1246,6 @@ TODO Add a way to inspect the mode name at each mode level in the rules stack.
 
 TODO Turn off whitespace prefixes in `str` mode.
 
-### Plan for future global grammar
-
-In writing this out, I realized that the initial global rule set makes the most
-sense as something small. In particular, parsing of rules belongs in a mode, and
-by default, we won't be in that mode. As an example of why this makes sense, the
-current rule setup may see an isolated rule without an introductory `>` phrase,
-and still parse that rule. That's bad behavior. It also feels cleaner if the
-global rule set is extremely small to begin with.
 
 Eventually, it would be nice to allow till-newline comments in grammar specs.
 
