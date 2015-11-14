@@ -1166,57 +1166,21 @@ global rule set is extremely small to begin with.
 
 ### Future runner changes
 
-### A few specific todo items
+#### How parse trees can be executed and evaluated
 
-
-
-### TEMP Rough list of items in this section:
-
-* What's immediately next
-  - What the next parse script will do
-* Parser changes
-  - Handling whitespace between tokens
-  - An idea for a clean global grammar
-* Runner changes
-  - How parse trees can be executed and evaluated
-* Reference points and other todo items
-  - Reference points
-  - Other short todo items
-
-### The next parse script
-
-I'd like the next parse script to be able to parse its own grammar.
-Optionally, I'd like to be able to toggle whitespace prefixing on and off.
-
-### Thoughts on future scripts
-
-
-------------------------------------------------------------------------------
-## TODO Stuff to decide where it goes.
-------------------------------------------------------------------------------
-
-
-*TODO Clean up these preliminary notes on the `Parser` class.*
-
-### Future functionality
-
-
-### How modes can be pushed
-
-**TODO** Clean up this bit.
-
-I'm working on the way modes will be pushed from a rule.
-
-Intuitively, it makes sense that a rule can have two major methods: one is an
-way to execute the parsed rule, another is a way to evaluate the rule as an
-expression. I could theoretically combine these, but I think the overall
+This section is about how a parse tree can be either run when treated as a code
+block, or evaluated when treated as an expression.
+I could theoretically combine these two operations, but I think the overall
 simplicity is greater if I keep them separate.
 
-The result of an execution could be a parse tree. This way, an execution can be
+The result of an execution could be another parse tree. This way, an execution
+can also be
 a place to hook the parsing process and perform customized work. An alternative
 design could be to pass in a writeable reference to the parse tree, so that it
 could be changed, but also so that it could be safely ignored. Which choice is
 better may emerge with more experience. For now I'll return the parse tree.
+I anticipate that this hook could be useful in particular for rearranging parse
+trees after parsing in order to account for precedence of operators.
 
 The result of an evaluation is conceptually a value in the language. For
 example, the parsed string `3.141f` in C would have a value of type `float` and
@@ -1231,38 +1195,16 @@ make it easier to use `src` as a way to perform secondary actions without
 having to worry about preceding whitespace, which was a common case in project
 water.
 
-TODO: I decided now is a good time to start working with a Parser instance
-      called `P`. This will be a good complement to the Runner `R`, and will be
-      a convenient single parameter to pass into parse-aware functions.
-      In particular, this will give me a good single place to call something
-      like `push_mode` and `parse_mode_till_popped`.
+### A few specific todo items
 
-In the future I may consider renaming `P` and `R` to `parser` and `runner`, as
-those are more descriptive names. I can also imagine eventually getting a
-`T` or `tree` parameter, similar to that used in `parse5`.
+This section contains a list of specific items I'd like to do at some point in
+the future, although not necessarily within the next iteration.
 
-TODO: Clean up the placement/expression of this future work item:
-TODO Add a way to inspect the mode name at each mode level in the rules stack.
+#### Items with reference points
 
-TODO Turn off whitespace prefixes in `str` mode.
-
-
-Eventually, it would be nice to allow till-newline comments in grammar specs.
-
-TODO Be able to correctly handle mistakes in `str` mode such as the source
-     ending with a single backslash.
-
-    -- TODO NEXT Figure out how to indicate no whitespace prefix in certain
-    --           places in the grammar. For example, in {star,qusetion}_item, as
-    --           well as in the str mode.
-
-TODO In the debug print-outs, be able to easily distinguish between a real
-     newline character and a simulated one.
-
-## Reference points
-
-This section refers to commented reference points within the code above.
-As an example, *Point D* can be found by searching for *Reference point D* in
+I'll use the term *reference point* to identify a specific point marked in the
+code above.
+As an example, *Point A* can be found by searching for *Reference point A* in
 this file.
 
 ### Point A
@@ -1275,4 +1217,15 @@ there in the grammar tree.
 
 In `Parser:parse_mode_till_popped()`, this is a good place to detect parse
 failures and to propagate those out to the caller.
+
+#### Items without reference points
+
+* Rename `P` and `R` to `parser` and `runner` for improved clarity.
+* Add a way to inspect the mode name at each mode level in the rules stack.
+* Turn off whitespace prefixes in `str` mode.
+* Consider till-newline comments in a grammar specification.
+* Be able to correctly handle mistakes in `str` mode such as the source
+  ending with a single backslash.
+* In the debug print-outs, be able to easily distinguish between a real
+  newline character and a simulated one.
 
