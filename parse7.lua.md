@@ -1227,8 +1227,38 @@ global rule set is extremely small to begin with.
 
 ### Future runner changes
 
+#### How parse trees can be executed and evaluated
+
+This section is about how a parse tree can be either run when treated as a code
+block, or evaluated when treated as an expression.
+I could theoretically combine these two operations, but I think the overall
+simplicity is greater if I keep them separate.
+
+The result of an execution could be another parse tree. This way, an execution
+can also be
+a place to hook the parsing process and perform customized work. An alternative
+design could be to pass in a writeable reference to the parse tree, so that it
+could be changed, but also so that it could be safely ignored. Which choice is
+better may emerge with more experience. For now I'll return the parse tree.
+I anticipate that this hook could be useful in particular for rearranging parse
+trees after parsing in order to account for precedence of operators.
+
+The result of an evaluation is conceptually a value in the language. For
+example, the parsed string `3.141f` in C would have a value of type `float` and
+the numeric value closest to 3.141 that can be represented in the corresponding
+binary format. It's ultimately up to the language designer to choose exactly how
+to represent values at this level.
+
+I can also imagine having automated `src` and `prefix` methods that would act in
+such a way that the concatenation of `prefix + src` for all parse trees would
+give back exactly the original source code. The separation of `prefix` would
+make it easier to use `src` as a way to perform secondary actions without
+having to worry about preceding whitespace, which was a common case in project
+water.
+
 ### A few specific todo items
 
+-- TODO HERE
 
 
 ### TEMP Rough list of items in this section:
@@ -1270,29 +1300,6 @@ Optionally, I'd like to be able to toggle whitespace prefixing on and off.
 
 I'm working on the way modes will be pushed from a rule.
 
-Intuitively, it makes sense that a rule can have two major methods: one is an
-way to execute the parsed rule, another is a way to evaluate the rule as an
-expression. I could theoretically combine these, but I think the overall
-simplicity is greater if I keep them separate.
-
-The result of an execution could be a parse tree. This way, an execution can be
-a place to hook the parsing process and perform customized work. An alternative
-design could be to pass in a writeable reference to the parse tree, so that it
-could be changed, but also so that it could be safely ignored. Which choice is
-better may emerge with more experience. For now I'll return the parse tree.
-
-The result of an evaluation is conceptually a value in the language. For
-example, the parsed string `3.141f` in C would have a value of type `float` and
-the numeric value closest to 3.141 that can be represented in the corresponding
-binary format. It's ultimately up to the language designer to choose exactly how
-to represent values at this level.
-
-I can also imagine having automated `src` and `prefix` methods that would act in
-such a way that the concatenation of `prefix + src` for all parse trees would
-give back exactly the original source code. The separation of `prefix` would
-make it easier to use `src` as a way to perform secondary actions without
-having to worry about preceding whitespace, which was a common case in project
-water.
 
 TODO: I decided now is a good time to start working with a Parser instance
       called `P`. This will be a good complement to the Runner `R`, and will be
