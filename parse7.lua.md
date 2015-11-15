@@ -96,6 +96,9 @@ extending into the production use of pumba by others developing new grammars.
 I hope to further improve the print format used by each value so the user sees
 exactly the useful pieces of data in a small but visually pleasant layout.
 
+The debug functions controlled by these booleans is described below in the
+*debug functions* section.
+
 --]]
 
     -- This turns on or off printing from within the run framework.
@@ -542,17 +545,11 @@ argument `lit_str`. This requires us to escape `lit_str` to avoid treating any
 regular-expressiony characters in it as special; this is done with the
 soon-to-be-defined `escaped_lit` function.
 
-TODO Carefully clean up the commented-out lines here. *Carefully* means to
-     consider keeping prints that may be useful for future debugging.
-
 --]]
 
     function parse_literal(str, lit_str)
-      --print('parse_literal(' .. str .. ', ' .. lit_str .. ')')
       local re = '^ *(' .. escaped_lit(lit_str) .. ')'
-      --print('re=' .. re)
       local s, e, val = str:find(re)
-      --print('s, e, val = ', s, e, val)
       if s == nil then return 'no match', str end
       return {name = '<lit>', value = val}, str:sub(e + 1)
     end
@@ -886,27 +883,22 @@ string is empty, treating all-whitespace strings as empty.
 
 --[[
 
-This section contains functions to help a grammar debug their own grammar. The
-output of these functions may also eventually be useful in the creation of clear
+This section contains functions to help a grammar writer debug their own
+grammar.
+These functions may also eventually be useful in the creation of clear
 and actionable error statements to code writers.
 
 The output of these functions is controlled by the boolean values listed above
 in the *settings* section. I like to keep configuration parameters near the top
-of a script for easier access.
+of a script for easier access. The table below indicates which booleans use
+which debug functions.
 
-
-TODO vvv   Remove these temp notes.
-
-    functions: pr, pr_tree, print_metaparse_info, wrap_metaparse_fn,
-               pr_line_values
-
-    call graph:
-
-    pr_line_values -> pr, pr_tree
-    do_post_parse_dbg_print -> pr_tree
-    do_dbg_print_each_phrase_parse -> pr_line_values
-
-TODO ^^^
+| boolean                          | functions used                          |
+| -------------------------------- | --------------------------------------- |
+| `do_run_dbg_print`               | `Run:dbg_print` called by `Run` methods |
+| `do_mid_parse_dbg_print`         | `print_metaparse_info`                  |
+| `do_post_parse_dbg_print`        | `pr_tree`                               |
+| `do_dbg_print_each_phrase_parse` | `pr_line_values -> pr, pr_tree`         |
 
 ### `pr()`
 
@@ -1022,8 +1014,6 @@ simple example tree is shown here:
     --     rules_start succeeded
     --   statement succeeded
     -- phrase succeeded
-
-TODO Also mention which functions are used by which settings booleans.
 
 --]]
 
