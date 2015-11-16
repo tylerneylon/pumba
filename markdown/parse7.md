@@ -9,32 +9,38 @@
 
 
 This is a literate implementation of a dynamic parser that is a step toward an
-open compiler. It is at once a valid Lua program and a valid markdown file. It's
-meant to be read by humans who'd like to learn how the program works in a manner
-similar to how they'd read an article.
+open compiler. The original file, `parse7.lua.md` is at once a valid Lua
+program and a valid markdown file, though you may be reading `parse7.md`, which
+was compiled from the original for better readability.
+This file is meant to be as easy to read as an article, albeit a technical one.
 
 The actual Lua program is given in code blocks between paragraphs. Some example
 or comment code blocks are also present; these examples are distinguished by a
 double-hyphen prefix. All other code is live and seen by Lua when you run this
 script.
 
-Here is how you can see this program in action by running
-it from the shell:
+Here is how you can run this script from the shell:
 
     -- Example shell usage:
     -- 
     -- lua parse7.lua.md 04.input
 
-This file is just one step in a project of large scope. I won't usually comment
+This file is just one step in a project of large scope.
+It will make the most sense to readers who already know a little bit about how
+parsers work.
+I won't usually comment
 my files so carefully, but I wanted to get some practice with literate
 programming, and I thought this particular step was interesting.
+
+TODO HERE -- add a brief intro to grammatical structure, w example --
 
 ### Modes
 
 This file adds a major feature to grammars called *modes*. Every mode can
 have its own completely independent grammar, or it can be designed to interact
 with other grammars. For example, the grammar parsed by this script includes a
-`regex` rule that parses string literals. Rather than writing a regular
+`regex` rule that parses string literals used as regular expressions.
+Rather than writing a regular
 expression to parse these string literals, I decided to use a mode. Below are
 the relevant rules.
 
@@ -43,6 +49,8 @@ the relevant rules.
     -- regex -->
     --   '"' -str
 
+This means a `regex` rule matches a literal double quote followed by whatever is
+matched by `-str`.
 The `-str` item instructs the parser to enter the mode called `str` until that
 mode exits.
 
@@ -56,7 +64,7 @@ mode exits.
     -- end_char -->
     --   '"' <pop>
 
-Recall that `phrase` is the default rule parsed repeatedly until either an error
+The `phrase` rule is the default one parsed repeatedly until either an error
 occurs or the string being parsed is exhausted.
 The `str` mode parses small character sequences at a time: either an escaped
 character, a non-escaped non-quote character, or an ending quote. Notice the
@@ -91,7 +99,7 @@ extending into the production use of pumba by others developing new grammars.
 I hope to further improve the print format used by each value so the user sees
 exactly the useful pieces of data in a small but visually pleasant layout.
 
-The debug functions controlled by these booleans is described below in the
+The debug functions controlled by these booleans are described below in the
 *debug functions* section.
 
 
@@ -106,7 +114,7 @@ The debug functions controlled by these booleans is described below in the
     -- This turns on or off printing debug info about parsing.
     local do_post_parse_dbg_print = true
 
-    -- This turns on or off printing of the input and output to each top-level
+    -- This turns on or off printing of the input and output of each top-level
     -- phrase parse. This is most useful when working with small phrase strings.
     local do_dbg_print_each_phrase_parse = false
 
@@ -127,9 +135,9 @@ I prefer the class interface for a couple reasons:
   could pass the grammar around as a parameter to functions, but it feels more
   natural to me for the grammar to be held in instance variables of a class.
 * Grammar-writers will have access to both the runtime system, currently
-  called `R`, and the parsing api. I think the overall interface will produce
-  more readable code if the entire api is made of method calls rather than a mix
-  of functions and methods. It feels more consistent and organized.
+  called `R`, and the parsing interface. I think the overall interface will
+  produce more readable code if it's entirely made of method calls rather than a
+  mix of functions and methods. It feels more consistent and organized.
 
 ### The prototype and instance variables
 
@@ -220,6 +228,7 @@ the next-in-stack table in order to enable popping.
       -- Define the metatable for the new placeholder rules table.
       local meta = {
         __index = function (tbl, key)
+          -- Uncomment these lines to turn on rule name lookup debugging.
           -- print('lookup on self.rules (tbl=' .. tostring(tbl) ..
           --       ') with key ' .. key)
           local v = mode_rules[key]
@@ -272,8 +281,9 @@ string. Most of this work is delegated across several parsing functions.
 ### `parse_rule()`
 
 The `parse_rule` method is the main dispatcher of rule parsing to more specific
-functions. It accepts the source string along with any string containing a valid
-item value, and attempts to parse that item from the prefix of the source.
+functions. It accepts the source string `str` along with another string
+`rule_name` containing a valid item value, and attempts to parse that item from
+the prefix of the source.
 
 Until now, the word *item* has been used informally to describe a single element
 on the right side of a grammar rule. It's a good time to be more precise.
@@ -282,48 +292,50 @@ The following are all the valid types of items. These descriptions mostly match
 both the vision and the implementation, but where they differ, I'll describe the
 vision rather than the implementation.
 
-* A *subrule* is named with an identifier that starts with a letter or
-  underscore, and continues with alphanumeric or underscore characters,
-  containing no other characters. This item is matched using the rule it names.
-* A *literal* is a single quote `'`-delimited string. It matches exactly the
+* A **literal** is a single quote `'`-delimited string. It matches exactly the
   characters inside the single quotes. For now, `parse_rule` does not respect
   any escaped characters in a literal, and simply trims off the first and last
   characters, expected to both be `'`.
-* A *string pattern*, similar to a regular expression, delimited by double
+* A **string pattern**, similar to a regular expression, is delimited by double
   quote `"` characters. The pattern matching is based on Lua's internal system,
   and is essentially the same as regular expressions except that parenthesized
   subexpressions cannot be followed by any of the `+*?` operators, and there is
   no `|` or operator.
-* An *optional* or *repeated* item, which is any valid item followed by a `?` or
+* A **subrule** is named with an identifier that starts with a letter or
+  underscore, and continues with alphanumeric or underscore characters,
+  containing no other characters. This item is matched using the rule it names.
+* An **optional** or **repeated** item is any valid item followed by a `?` or
   `*` character. If the last character is `?`, then 0 or 1 of the item are
   matched. If it's `*`, then 0 or more are matched.
-* A *mode parse* item, which is the character `-` followed by a mode name. This
-  item pushes the new mode, then repeatedly parses the `phrase` rule in the
+* A **mode parse** item, which is the character `-` followed by a mode name.
+  This item pushes the new mode, then repeatedly parses the `phrase` rule in the
   resulting mode stack until the mode is popped, or a parse error occurs.
-* A *special case* `<pop>` item, which parses nothing, but pops the current mode
+* A **special case** `<pop>` item, which parses nothing, but pops the current
+  mode
   and returns a special case tree value indicating that this action was taken.
   In a correctly-designed grammar, this return value will never be seen at a top
-  level parse call, and only be used internally, within the parse of a single
-  top-level `phrase` rule.
+  level parse call, and will only be used internally within the parse of a
+  single top-level `phrase` rule.
 
 Each of these cases are handled by more specific functions defined below.
 
-This function contains the first *reference point*. These are places in the code
+As a side note, this function contains the first *reference point*. These are
+places in the code
 where I have specific improvement ideas. The details of all reference points are
-listed at the bottom of this file in the *reference points* sections.
+listed at the bottom of this file in the *items with reference points* sections.
 
 
     function Parser:parse_rule(str, rule_name)
-      local last_char = rule_name:sub(#rule_name, #rule_name)
+      local last_char = rule_name:sub(-1)  -- -1 indicates the last character.
 
       -- Handle item types: literal, optional, repeated, mode, or <pop>.
 
       if last_char == "'" then
-        return parse_literal(str, rule_name:sub(2, #rule_name - 1))
+        return parse_literal(str, rule_name:sub(2, -2))  -- -2 trims last char.
       elseif last_char == '"' then
-        return parse_regex(str, rule_name:sub(2, #rule_name - 1))
+        return parse_regex(str, rule_name:sub(2, -2))
       elseif last_char == '*' or last_char == '?' then
-        local rule = self.rules[rule_name:sub(1, #rule_name - 1)]
+        local rule = self.rules[rule_name:sub(1, -2)]
         return self:parse_multi_rule(str, rule, last_char)
       elseif rule_name:sub(1, 1) == '-' then
         local mode = rule_name:sub(2)
@@ -362,7 +374,9 @@ value. Each tree will always have at least these keys:
 | kind | either `'seq'` or `'or'`                                            |
 | kids | all subtrees in order for a seq-rule; a single item for an or-rule  |
 
-Each individual item is attempted to be parsed using `parse_rule`.
+TODO HERE vvv proofread vvv
+
+A parse attempt is made for each individual item using `parse_rule`.
 Parse failures provide the string `'no match'` instead of a tree object as the
 first return value.
 
