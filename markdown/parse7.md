@@ -8,9 +8,10 @@
 ------------------------------------------------------------------------------
 
 
-This is a literate implementation of a dynamic parser that is a step toward an
-open compiler. The original file, `parse7.lua.md` is at once a valid Lua
-program and a valid markdown file, though you may be reading `parse7.md`, which
+This is a literate implementation of a dynamic parser. It's one piece of an
+in-progress compiler project.
+The original file, `parse7.lua.md`, is at once a valid Lua
+program and a valid markdown file. You may be reading `parse7.md`, which
 was compiled from the original for better readability.
 This file is meant to be as easy to read as an article, albeit a technical one.
 
@@ -25,14 +26,35 @@ Here is how you can run this script from the shell:
     -- 
     -- lua parse7.lua.md 04.input
 
-This file is just one step in a project of large scope.
-It will make the most sense to readers who already know a little bit about how
-parsers work.
+This file will make the most sense to readers who already know a little bit
+about how parsers work.
 I won't usually comment
 my files so carefully, but I wanted to get some practice with literate
-programming, and I thought this particular step was interesting.
+programming and I thought this particular step was interesting.
 
-TODO HERE -- add a brief intro to grammatical structure, w example --
+### Excerpt of a grammar specification
+
+This script both contains an internal grammar specification and is capable of
+parsing an external grammar specification. Below is an excerpt of a grammar that
+this script can parse.
+
+    -- >
+    --   statement --> fn_def | fn_call
+    --   fn_def -->
+    --     type work '(' ')' '{' statement* '}'
+
+The initial `>` character indicates that the following indented block is a
+grammar specification. There are two rules defined here: one called `statement`
+and another called `fn_def`, for a function definition. These illustrate the two
+major types of rules. `statement` is an *or-rule*, meaning that it must be
+parsed as another named rule; in this case, it must end up as either `fn_def` or
+as `fn_call`, which must be defined elsewhere for the grammar to make sense. The
+`fn_def` rule is a *seq-rule*, which consists of a sequence of either other
+rules or of literals such as `'('` which matches a literal `(` character.
+
+The rest of this writing won't go into much more detail about grammars in
+general, but I'll try to be clear about the code's internal parsing style and
+how it works with grammar rules.
 
 ### Modes
 
