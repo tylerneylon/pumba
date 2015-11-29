@@ -44,7 +44,7 @@ this script can parse.
     -- >
     --   statement --> fn_def | fn_call
     --   fn_def -->
-    --     type work '(' ')' '{' statement* '}'
+    --     type word '(' ')' '{' statement* '}'
 
 The initial `>` character indicates that the following indented block is a
 grammar specification. There are two rules defined here: one called `statement`
@@ -1220,7 +1220,7 @@ that make up a seq-rule, we may have star items. There's a sample star item in
 this rule from `04.input`:
 
     -- fn_def -->
-    --   type work '(' ')' '{' statement* '}'
+    --   type word '(' ')' '{' statement* '}'
 
 The syntax for a star item is a rule name
 immediately followed by a `'*'` token, without any whitespace between the

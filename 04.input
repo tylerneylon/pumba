@@ -1,7 +1,7 @@
 >
   statement --> fn_def | fn_call
   fn_def -->
-    type work '(' ')' '{' statement* '}'
+    type word '(' ')' '{' statement* '}'
   fn_call -->
     word '(' end_of_fn_call
   end_of_fn_call --> expr_end_paren | end_paren
