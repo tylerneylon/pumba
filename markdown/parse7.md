@@ -396,9 +396,8 @@ value. Each tree will always have at least these keys:
 | kind | either `'seq'` or `'or'`                                            |
 | kids | all subtrees in order for a seq-rule; a single item for an or-rule  |
 
-TODO HERE vvv proofread vvv
-
-A parse attempt is made for each individual item using `parse_rule`.
+A parse attempt is made for each individual item in `rule.items` using
+`parse_rule`.
 Parse failures provide the string `'no match'` instead of a tree object as the
 first return value.
 
@@ -439,7 +438,7 @@ the given source string `str`.
 
 ### `parse_multi_rule()`
 
-This method parses optional rules that end with a `?` character, and repeated
+This method parses *optional* rules that end with a `?` character and *repeated*
 rules that end with `*` character. As above, `parse_rule` is used to parse the
 rule name after this last special character has been removed.
 
@@ -494,7 +493,7 @@ interface easier to use incorrectly. So this operation is handled through the
 `add_rules_to_mode()` method. As a bonus, the method also ensures that each
 rule has a consistently-set `name` key.
 
-We haven't seen any rule definitions yet, although previous methods have used
+We haven't seen any official rule data yet, although previous methods have used
 the `rule.items` table and the `rule.kind` string. Some concrete rule data will
 be given below.
 
@@ -522,23 +521,23 @@ Now we're ready to create a `Parser` instance, which we'll call `P`.
 
 
 These functions may live outside of any Parser instance as they depend
-on nothing beyond the string and regex or literal handed to them. In
+on nothing beyond the source string and regex or literal handed to them. In
 contrast, parse methods in `Parser` care about the current context of
 named rules.
 
 The next two functions are the only leaf-parsers. The current code 
 allows arbitrary space characters before any literal or regular expression. This
 is not always what we want. For example, in the string-parsing mode, we don't
-want to silenly parse space characters; they should be explicitly parsed as
+want to silently parse space characters; they should be explicitly parsed as
 belonging to the grammar's items.
 
 Similar to `Parser`'s parsing methods, these functions accept a source string
 and return a `tree`, `tail` pair. The `tree` has the following keys.
 
-| Key  |  Meaning                                                            |
-| ---- | ------------------------------------------------------------------- |
-| name | either `'lit'` for a literal, or `'re'` for a regular expression    |
-| val  | the matched substring of the source, excluding any leading spaces   |
+| Key  |  Meaning                                                             |
+| ---- | -------------------------------------------------------------------- |
+| name | either `'<lit>'` for a literal, or `'<re>'` for a regular expression |
+| val  | the matched substring of the source, excluding any leading spaces    |
 
 ### `parse_literal()`
 
@@ -673,12 +672,11 @@ character. And the item `"[^\"]"` matches any non-quote character.
     -- end_char -->
     --   '"' <pop>
 
-The `regular_char` rule avoids matching backslashes
+In practice, the `regular_char` rule won't match backslashes
 because the previous `escaped_char` rule will
 capture them. Unless, of course, the entire source data ended with a
 backslash, in which case `escaped_char` would fail to parse the `"."` item. This
-unusual case reveals a bug in the grammar, but one which is not critical since
-this is not production code.
+unusual case reveals a bug in the grammar that I plan to address later.
 
 Now we're ready for actual code that will add this rule set to our `Parser`
 instance `P`. This data directly reflects the rules we've just seen.
@@ -748,6 +746,8 @@ thus leaves the `Parser` class somewhat more elegant.
 ## Tree running functions.
 ------------------------------------------------------------------------------
 
+
+TODO HERE vvv proofread vvv
 
 One long-term goal of this project is to be able to specify at once both a
 grammar and a set of behaviors for the resulting parse tree. Internally, these
