@@ -18,7 +18,18 @@ more elegant than what I started with in Project Water.
 
 ## What works so far
 
-Here are a few example cases you can try out:
+The most recent script you can try is `parse7.lua.md`. This script can parse a
+general grammar spec. An example C-like grammar is in `04.input`, and can be
+parsed by running this:
+
+    lua parse7.lua.md 04.input
+
+This script has been written as a literate program.
+It's a good way to see how this early stage of the open compiler is set up.
+[Check it out
+here.](https://github.com/tylerneylon/pumba/blob/master/markdown/parse7.md)
+
+Here are a few other example cases you can try out:
 
     ./parse1.lua 00.input  # parse and evaluate simple math expressions
 
@@ -39,9 +50,11 @@ explained in
 
 ## What is in progress
 
-I've set up `04.input` as a newer C subset grammar. My plan is to set up
-`parse7.lua.md` as a script that uses mode-based parsing -- both internally
-and externally -- to parse this file.
+I just finished `parse7`, and plan to do a couple things soon:
+* Set up `parse8` as a deliterified version of `parse7` which I think will make
+  future development easier.
+* Then set up `parse9` with its own grammar spec in `05.input`, and make sure
+  that `parse9` can parse `05.input`.
 
 ### Future ideas
 
