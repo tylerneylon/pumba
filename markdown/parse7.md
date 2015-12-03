@@ -1140,18 +1140,16 @@ parsed, beginning with 1.
 ------------------------------------------------------------------------------
 
 
-TODO HERE vvv proofread vvv
-
 We've now seen the entire code content of this script.
 However, since this script is one step in an ongoing project, there are many
-relevant outgoing ideas just itching to be expressed.
+ideas for future work itching to be expressed.
 This section mentions some of these ideas.
 
 ### What the next script will do
 
 I'd like the next parse script to be able to parse its own grammar.
-This would add a nice sense of closure and consistency to the way a grammar
-works internally with the initial grammar-parsing grammar.
+This would add a nice sense of closure and consistency to the way parsing
+is initially set up.
 
 A lower priority goal is to have better control over between-token whitespace -
 a topic discussed in more detail below.
@@ -1162,7 +1160,7 @@ I consider this goal optional for the next iteration.
 #### Whitespace between tokens
 
 I'd like to have an easy-to-notate and perhaps
-within-rule change in whitespace handling. For example, in the list of items
+within-rule way to change whitespace handling. For example, in the list of items
 that make up a seq-rule, we may have star items. There's a sample star item in
 this rule from `04.input`:
 
