@@ -788,8 +788,6 @@ thus leaves the `Parser` class somewhat more elegant.
 
 --[[
 
-TODO HERE vvv proofread vvv
-
 One long-term goal of this project is to be able to specify at once both a
 grammar and a set of behaviors for the resulting parse tree. Internally, these
 two behaviors are captured by the `Parser` class and the `Run` class - which may
@@ -797,18 +795,20 @@ eventually be renamed to `Runner` for consistency. The code in this section
 specifies the `Run` class but is *not used* in this script. It exists for its
 future use in the more complete open compiler implementations.
 
-Since this code is not used, these literate comments will not cover it in
-detail. To understand its place in the big picture, though, it's useful to know
+This script doesn't use the code in this section, so these literate comments
+won't cover it in detail. To understand how this code fits into the big picture,
+though, it's useful to know
 that the main entry point to a `Run` instance `R` is the method `R:run()` called
-with a `tree` that was returned by `P:parse()`. The tree elements
-themselves will eventually have a key called `run` whose value is a string of
-Lua code that will be executed by `R:run()`.
+with a `tree` argument that was returned by `P:parse()`. The plan is for each
+`tree` to eventually have a `tree.run` value which holds a string of Lua code.
+`R:run()` will basically execute this string.
 
 --]]
 
     -- This sets the given key-value pair at the closest level where the key
     -- exists; if it is new key at all levels, it's created at the current
-    -- level.
+    -- level. Don't call this directly - just assign values in the frame. This
+    -- function is invoked as a metamethod.
     function frame_set(frame, key, val)
       if frame[key] == nil or rawget(frame, key) ~= nil then
         rawset(frame, key, val)
@@ -829,8 +829,8 @@ Lua code that will be executed by `R:run()`.
     end
 
     function Run:push_scope()
-      local meta = {__index = self.frame,
-                    up = self.frame,
+      local meta = {__index    = self.frame,
+                    up         = self.frame,
                     __newindex = frame_set}
       self.frame = setmetatable({}, meta)
     end
@@ -938,7 +938,7 @@ which debug functions.
 
 ### `pr()`
 
-This function can prettily print any primitive Lua type and tables. It's used by
+This function can prettily print any primitive Lua type or table. It's used by
 the `pr_tree` function below, although not extensively. It's nice to have a
 function like this handy for general debugging.
 
@@ -967,8 +967,9 @@ function like this handy for general debugging.
 
 ### `pr_tree()`
 
-This function produces a clear breakdown of a parse tree into both the rule
-names and the corresponding sections of source text parsed into those rules.
+This function produces a clear breakdown of a parse tree into the names of
+the rules that were parsed as well as the substrings of source corresponding
+to each leaf in the tree.
 
 As an example, suppose we have these source lines:
 
@@ -976,7 +977,7 @@ As an example, suppose we have these source lines:
     --   word '(' end_of_fn_call
 
 Calling `P:parse()` will return a parse tree. If we call `pr_tree()` on that
-return value, the output looks like this:
+tree, the output looks like this:
 
     -- phrase - statement - rule
     --   rule_name fn_call
@@ -1022,7 +1023,7 @@ visually distinguish them from running code.
 ### `first_line()` and `print_metaparse_info()`
 
 The next two functions work together to print out intermediate parsing progress
-as it happens. As a simple exmaple, the very first line of `04.input` consists
+as it happens. As a simple example, the very first line of `04.input` consists
 of exactly two characters: a `>` and a newline. These will be parsed into the
 tree below.
 
@@ -1051,6 +1052,8 @@ simple example tree is shown here:
     --   statement succeeded
     -- phrase succeeded
 
+Here's the code:
+
 --]]
 
     function first_line(str)
@@ -1067,7 +1070,7 @@ simple example tree is shown here:
       local tree, tail = fn()
       local outcome_str = (tree == 'no match' and 'failed' or 'succeeded')
       print(indent .. rule_name .. ' ' .. outcome_str)
-      indent = indent:sub(1, #indent - 2)
+      indent = indent:sub(3)  -- Drop the first 2 characters.
       return tree, tail
     end
 
@@ -1075,9 +1078,11 @@ simple example tree is shown here:
 
 Unlike most of the code so far, this next section actually runs a few statements
 rather than simply defining variables or functions. This is how
-the `do_mid_parse_dbg_pring` boolean takes effect. When it's on, the
+the `do_mid_parse_dbg_print` boolean takes effect. When it's on, the
 `P.parse_rule()` method is replaced with a wrapper version that prints out
-metaparse information via the above `print_metaparse_info()` function.
+metaparse info via the above `print_metaparse_info()` function.
+This indirect wrapper system exists so it could also theoretically wrap other
+parse functions with signatures similar to `parse_rule`.
 
 --]]
 
@@ -1124,7 +1129,7 @@ is the source that remains after the phrase.
 
 --[[
 
-At last we're ready for some directly running code.
+At last we're ready for the primary running code.
 First we check that the user has provided an input file name; if not, they see a
 message on how to use this script and not much else.
 
@@ -1134,7 +1139,7 @@ message on how to use this script and not much else.
     if not arg[1] then
       print('Usage:')
       print('  lua ' .. arg[0] .. ' <input_file>')
-      os.exit(2)
+      os.exit(2)  -- I use exit code 2 for bad command arguments.
     end
 
 --[[
@@ -1153,12 +1158,13 @@ not used in this script, it will be in future versions.
 --[[
 
 Next is the main loop. It runs until everything in the source string `src` has
-been parsed as a top-level phrase. Each top-level parse is executed by a call to
-`P:parse()`. If the parse failed, we print an error message and exit. If the
+been parsed as a top-level phrase. Each top-level parse is initiated by a call
+to `P:parse()`. If the parse failed, we print an error message and exit. If the
 parse succeeded, then future versions of this script will execute the parse tree
 by a call to `R:run()`. The loop contains explicit clauses for debug printing
-toggled by the `do_post_parse_dbg_print` and `do_dbg_print_each_parse_phrase`
-booleans. It also maintains that `src` is the not-yet-parsed suffix of the
+toggled by the booleans `do_post_parse_dbg_print` and
+`do_dbg_print_each_parse_phrase`.
+It also maintains that `src` is the not-yet-parsed suffix of the
 source, and that `statement_num` counts the index of the phrase about to be
 parsed, beginning with 1.
 
@@ -1194,6 +1200,8 @@ parsed, beginning with 1.
 ------------------------------------------------------------------------------
 
 --[[
+
+TODO HERE vvv proofread vvv
 
 We've now seen the entire code content of this script.
 However, since this script is one step in an ongoing project, there are many
@@ -1320,5 +1328,7 @@ failures and to propagate those out to the caller.
   ending with a single backslash.
 * In the debug print-outs, be able to easily distinguish between a real
   newline character and a simulated one.
+* Replace `Run:new_local` with an `R.local` table that is analogous to
+  `R.global`.
 
 --]]
